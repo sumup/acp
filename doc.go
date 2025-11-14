@@ -19,7 +19,7 @@
 // [DelegatedPaymentWithSignatureVerifier] keep API keys and signed requests in
 // sync with ACP's security requirements.
 //
-// ## How it works
+// # How it works
 //
 //   - Buyers check out using their preferred payment method and save it in ChatGPT.
 //   - The delegated payment payload is sent to the merchant’s PSP or vault directly. The delegated payment is single-use and set with allowances.
