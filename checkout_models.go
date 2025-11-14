@@ -5,12 +5,10 @@ import (
 	"time"
 
 	"github.com/oapi-codegen/runtime"
-	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
-const (
-	BearerAuthScopes = "bearerAuth.Scopes"
-)
+// CheckoutSessionBaseStatus defines model for CheckoutSessionBase.Status.
+type CheckoutSessionBaseStatus string
 
 // Defines values for CheckoutSessionBaseStatus.
 const (
@@ -21,6 +19,9 @@ const (
 	CheckoutSessionBaseStatusReadyForPayment    CheckoutSessionBaseStatus = "ready_for_payment"
 )
 
+// CheckoutSessionWithOrderStatus defines model for CheckoutSessionWithOrder.Status.
+type CheckoutSessionWithOrderStatus string
+
 // Defines values for CheckoutSessionWithOrderStatus.
 const (
 	CheckoutSessionWithOrderStatusCanceled           CheckoutSessionWithOrderStatus = "canceled"
@@ -30,12 +31,18 @@ const (
 	CheckoutSessionWithOrderStatusReadyForPayment    CheckoutSessionWithOrderStatus = "ready_for_payment"
 )
 
+// LinkType defines model for Link.Type.
+type LinkType string
+
 // Defines values for LinkType.
 const (
 	PrivacyPolicy      LinkType = "privacy_policy"
 	SellerShopPolicies LinkType = "seller_shop_policies"
 	TermsOfUse         LinkType = "terms_of_use"
 )
+
+// MessageErrorCode defines model for MessageError.Code.
+type MessageErrorCode string
 
 // Defines values for MessageErrorCode.
 const (
@@ -47,11 +54,17 @@ const (
 	RequiresSignIn  MessageErrorCode = "requires_sign_in"
 )
 
+// MessageErrorContentType defines model for MessageError.ContentType.
+type MessageErrorContentType string
+
 // Defines values for MessageErrorContentType.
 const (
 	MessageErrorContentTypeMarkdown MessageErrorContentType = "markdown"
 	MessageErrorContentTypePlain    MessageErrorContentType = "plain"
 )
+
+// MessageInfoContentType defines model for MessageInfo.ContentType.
+type MessageInfoContentType string
 
 // Defines values for MessageInfoContentType.
 const (
@@ -59,20 +72,16 @@ const (
 	MessageInfoContentTypePlain    MessageInfoContentType = "plain"
 )
 
-// Defines values for PaymentDataProvider.
-const (
-	PaymentDataProviderStripe PaymentDataProvider = "stripe"
-)
-
-// Defines values for PaymentProviderProvider.
-const (
-	PaymentProviderProviderStripe PaymentProviderProvider = "stripe"
-)
+// SupportedPaymentMethods defines model for PaymentProvider.SupportedPaymentMethods.
+type SupportedPaymentMethods string
 
 // Defines values for PaymentProviderSupportedPaymentMethods.
 const (
-	Card PaymentProviderSupportedPaymentMethods = "card"
+	Card SupportedPaymentMethods = "card"
 )
+
+// TotalType defines model for Total.Type.
+type TotalType string
 
 // Defines values for TotalType.
 const (
@@ -99,10 +108,10 @@ type Address struct {
 
 // Buyer defines model for Buyer.
 type Buyer struct {
-	Email       openapi_types.Email `json:"email"`
-	FirstName   string              `json:"first_name"`
-	LastName    string              `json:"last_name"`
-	PhoneNumber *string             `json:"phone_number,omitempty"`
+	Email       string  `json:"email"`
+	FirstName   string  `json:"first_name"`
+	LastName    string  `json:"last_name"`
+	PhoneNumber *string `json:"phone_number,omitempty"`
 }
 
 // CheckoutSession defines model for CheckoutSession.
@@ -110,32 +119,29 @@ type CheckoutSession = CheckoutSessionBase
 
 // CheckoutSessionBase defines model for CheckoutSessionBase.
 type CheckoutSessionBase struct {
-	Buyer               *Buyer                                        `json:"buyer,omitempty"`
-	Currency            string                                        `json:"currency"`
-	FulfillmentAddress  *Address                                      `json:"fulfillment_address,omitempty"`
-	FulfillmentOptionId *string                                       `json:"fulfillment_option_id,omitempty"`
-	FulfillmentOptions  []CheckoutSessionBase_FulfillmentOptions_Item `json:"fulfillment_options"`
-	Id                  string                                        `json:"id"`
-	LineItems           []LineItem                                    `json:"line_items"`
-	Links               []Link                                        `json:"links"`
-	Messages            []CheckoutSessionBase_Messages_Item           `json:"messages"`
-	PaymentProvider     *PaymentProvider                              `json:"payment_provider,omitempty"`
-	Status              CheckoutSessionBaseStatus                     `json:"status"`
-	Totals              []Total                                       `json:"totals"`
+	Buyer               *Buyer                    `json:"buyer,omitempty"`
+	Currency            string                    `json:"currency"`
+	FulfillmentAddress  *Address                  `json:"fulfillment_address,omitempty"`
+	FulfillmentOptionId *string                   `json:"fulfillment_option_id,omitempty"`
+	FulfillmentOptions  []FulfillmentOption       `json:"fulfillment_options"`
+	Id                  string                    `json:"id"`
+	LineItems           []LineItem                `json:"line_items"`
+	Links               []Link                    `json:"links"`
+	Messages            []Message                 `json:"messages"`
+	PaymentProvider     *PaymentProvider          `json:"payment_provider,omitempty"`
+	Status              CheckoutSessionBaseStatus `json:"status"`
+	Totals              []Total                   `json:"totals"`
 }
 
-// CheckoutSessionBase_FulfillmentOptions_Item defines model for CheckoutSessionBase.fulfillment_options.Item.
-type CheckoutSessionBase_FulfillmentOptions_Item struct {
+// FulfillmentOption defines model for CheckoutSessionBase.fulfillment_options.Item.
+type FulfillmentOption struct {
 	union json.RawMessage
 }
 
-// CheckoutSessionBase_Messages_Item defines model for CheckoutSessionBase.messages.Item.
-type CheckoutSessionBase_Messages_Item struct {
+// Message defines model for CheckoutSessionBase.messages.Item.
+type Message struct {
 	union json.RawMessage
 }
-
-// CheckoutSessionBaseStatus defines model for CheckoutSessionBase.Status.
-type CheckoutSessionBaseStatus string
 
 // CheckoutSessionCompleteRequest defines model for CheckoutSessionCompleteRequest.
 type CheckoutSessionCompleteRequest struct {
@@ -160,33 +166,20 @@ type CheckoutSessionUpdateRequest struct {
 
 // CheckoutSessionWithOrder defines model for CheckoutSessionWithOrder.
 type CheckoutSessionWithOrder struct {
-	Buyer               *Buyer                                             `json:"buyer,omitempty"`
-	Currency            string                                             `json:"currency"`
-	FulfillmentAddress  *Address                                           `json:"fulfillment_address,omitempty"`
-	FulfillmentOptionId *string                                            `json:"fulfillment_option_id,omitempty"`
-	FulfillmentOptions  []CheckoutSessionWithOrder_FulfillmentOptions_Item `json:"fulfillment_options"`
-	Id                  string                                             `json:"id"`
-	LineItems           []LineItem                                         `json:"line_items"`
-	Links               []Link                                             `json:"links"`
-	Messages            []CheckoutSessionWithOrder_Messages_Item           `json:"messages"`
-	Order               Order                                              `json:"order"`
-	PaymentProvider     *PaymentProvider                                   `json:"payment_provider,omitempty"`
-	Status              CheckoutSessionWithOrderStatus                     `json:"status"`
-	Totals              []Total                                            `json:"totals"`
+	Buyer               *Buyer                         `json:"buyer,omitempty"`
+	Currency            string                         `json:"currency"`
+	FulfillmentAddress  *Address                       `json:"fulfillment_address,omitempty"`
+	FulfillmentOptionId *string                        `json:"fulfillment_option_id,omitempty"`
+	FulfillmentOptions  []FulfillmentOption            `json:"fulfillment_options"`
+	Id                  string                         `json:"id"`
+	LineItems           []LineItem                     `json:"line_items"`
+	Links               []Link                         `json:"links"`
+	Messages            []Message                      `json:"messages"`
+	Order               Order                          `json:"order"`
+	PaymentProvider     *PaymentProvider               `json:"payment_provider,omitempty"`
+	Status              CheckoutSessionWithOrderStatus `json:"status"`
+	Totals              []Total                        `json:"totals"`
 }
-
-// CheckoutSessionWithOrder_FulfillmentOptions_Item defines model for CheckoutSessionWithOrder.fulfillment_options.Item.
-type CheckoutSessionWithOrder_FulfillmentOptions_Item struct {
-	union json.RawMessage
-}
-
-// CheckoutSessionWithOrder_Messages_Item defines model for CheckoutSessionWithOrder.messages.Item.
-type CheckoutSessionWithOrder_Messages_Item struct {
-	union json.RawMessage
-}
-
-// CheckoutSessionWithOrderStatus defines model for CheckoutSessionWithOrder.Status.
-type CheckoutSessionWithOrderStatus string
 
 // FulfillmentOptionDigital defines model for FulfillmentOptionDigital.
 type FulfillmentOptionDigital struct {
@@ -236,26 +229,6 @@ type Link struct {
 	Url  string   `json:"url"`
 }
 
-// LinkType defines model for Link.Type.
-type LinkType string
-
-// MessageError defines model for MessageError.
-type MessageError struct {
-	Code        MessageErrorCode        `json:"code"`
-	Content     string                  `json:"content"`
-	ContentType MessageErrorContentType `json:"content_type"`
-
-	// Param RFC 9535 JSONPath
-	Param *string `json:"param"`
-	Type  string  `json:"type"`
-}
-
-// MessageErrorCode defines model for MessageError.Code.
-type MessageErrorCode string
-
-// MessageErrorContentType defines model for MessageError.ContentType.
-type MessageErrorContentType string
-
 // MessageInfo defines model for MessageInfo.
 type MessageInfo struct {
 	Content     string                 `json:"content"`
@@ -265,9 +238,6 @@ type MessageInfo struct {
 	Param *string `json:"param,omitempty"`
 	Type  string  `json:"type"`
 }
-
-// MessageInfoContentType defines model for MessageInfo.ContentType.
-type MessageInfoContentType string
 
 // Order defines model for Order.
 type Order struct {
@@ -288,15 +258,12 @@ type PaymentDataProvider string
 
 // PaymentProvider defines model for PaymentProvider.
 type PaymentProvider struct {
-	Provider                PaymentProviderProvider                  `json:"provider"`
-	SupportedPaymentMethods []PaymentProviderSupportedPaymentMethods `json:"supported_payment_methods"`
+	Provider                PaymentProviderProvider   `json:"provider"`
+	SupportedPaymentMethods []SupportedPaymentMethods `json:"supported_payment_methods"`
 }
 
 // PaymentProviderProvider defines model for PaymentProvider.Provider.
 type PaymentProviderProvider string
-
-// PaymentProviderSupportedPaymentMethods defines model for PaymentProvider.SupportedPaymentMethods.
-type PaymentProviderSupportedPaymentMethods string
 
 // Total defines model for Total.
 type Total struct {
@@ -305,17 +272,8 @@ type Total struct {
 	Type        TotalType `json:"type"`
 }
 
-// TotalType defines model for Total.Type.
-type TotalType string
-
 // AcceptLanguage defines model for AcceptLanguage.
 type AcceptLanguage = string
-
-// Authorization defines model for Authorization.
-type Authorization = string
-
-// ContentType defines model for ContentType.
-type ContentType = string
 
 // IdempotencyKey defines model for IdempotencyKey.
 type IdempotencyKey = string
@@ -323,102 +281,25 @@ type IdempotencyKey = string
 // RequestId defines model for RequestId.
 type RequestId = string
 
-// Signature defines model for Signature.
-type Signature = string
-
 // Timestamp defines model for Timestamp.
 type Timestamp = time.Time
 
-// UserAgent defines model for UserAgent.
-type UserAgent = string
-
-// CreateCheckoutSessionParams defines parameters for CreateCheckoutSession.
-type CreateCheckoutSessionParams struct {
-	Authorization  Authorization   `json:"Authorization"`
-	ContentType    ContentType     `json:"Content-Type"`
-	AcceptLanguage *AcceptLanguage `json:"Accept-Language,omitempty"`
-	UserAgent      *UserAgent      `json:"User-Agent,omitempty"`
-	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
-	RequestId      *RequestId      `json:"Request-Id,omitempty"`
-	Signature      *Signature      `json:"Signature,omitempty"`
-	Timestamp      *Timestamp      `json:"Timestamp,omitempty"`
-	APIVersion     string          `json:"API-Version"`
-}
-
-// GetCheckoutSessionParams defines parameters for GetCheckoutSession.
-type GetCheckoutSessionParams struct {
-	Authorization  Authorization   `json:"Authorization"`
-	AcceptLanguage *AcceptLanguage `json:"Accept-Language,omitempty"`
-	UserAgent      *UserAgent      `json:"User-Agent,omitempty"`
-	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
-	RequestId      *RequestId      `json:"Request-Id,omitempty"`
-	Signature      *Signature      `json:"Signature,omitempty"`
-	Timestamp      *Timestamp      `json:"Timestamp,omitempty"`
-	APIVersion     string          `json:"API-Version"`
-}
-
-// UpdateCheckoutSessionParams defines parameters for UpdateCheckoutSession.
-type UpdateCheckoutSessionParams struct {
-	Authorization  Authorization   `json:"Authorization"`
-	AcceptLanguage *AcceptLanguage `json:"Accept-Language,omitempty"`
-	UserAgent      *UserAgent      `json:"User-Agent,omitempty"`
-	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
-	RequestId      *RequestId      `json:"Request-Id,omitempty"`
-	Signature      *Signature      `json:"Signature,omitempty"`
-	Timestamp      *Timestamp      `json:"Timestamp,omitempty"`
-	APIVersion     string          `json:"API-Version"`
-}
-
-// CancelCheckoutSessionParams defines parameters for CancelCheckoutSession.
-type CancelCheckoutSessionParams struct {
-	Authorization  Authorization   `json:"Authorization"`
-	AcceptLanguage *AcceptLanguage `json:"Accept-Language,omitempty"`
-	UserAgent      *UserAgent      `json:"User-Agent,omitempty"`
-	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
-	RequestId      *RequestId      `json:"Request-Id,omitempty"`
-	Signature      *Signature      `json:"Signature,omitempty"`
-	Timestamp      *Timestamp      `json:"Timestamp,omitempty"`
-	APIVersion     string          `json:"API-Version"`
-}
-
-// CompleteCheckoutSessionParams defines parameters for CompleteCheckoutSession.
-type CompleteCheckoutSessionParams struct {
-	Authorization  Authorization   `json:"Authorization"`
-	ContentType    ContentType     `json:"Content-Type"`
-	AcceptLanguage *AcceptLanguage `json:"Accept-Language,omitempty"`
-	UserAgent      *UserAgent      `json:"User-Agent,omitempty"`
-	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
-	RequestId      *RequestId      `json:"Request-Id,omitempty"`
-	Signature      *Signature      `json:"Signature,omitempty"`
-	Timestamp      *Timestamp      `json:"Timestamp,omitempty"`
-	APIVersion     string          `json:"API-Version"`
-}
-
-// CreateCheckoutSessionJSONRequestBody defines body for CreateCheckoutSession for application/json ContentType.
-type CreateCheckoutSessionJSONRequestBody = CheckoutSessionCreateRequest
-
-// UpdateCheckoutSessionJSONRequestBody defines body for UpdateCheckoutSession for application/json ContentType.
-type UpdateCheckoutSessionJSONRequestBody = CheckoutSessionUpdateRequest
-
-// CompleteCheckoutSessionJSONRequestBody defines body for CompleteCheckoutSession for application/json ContentType.
-type CompleteCheckoutSessionJSONRequestBody = CheckoutSessionCompleteRequest
-
 // AsFulfillmentOptionShipping returns the union data inside the CheckoutSessionBase_FulfillmentOptions_Item as a FulfillmentOptionShipping
-func (t CheckoutSessionBase_FulfillmentOptions_Item) AsFulfillmentOptionShipping() (FulfillmentOptionShipping, error) {
+func (t FulfillmentOption) AsFulfillmentOptionShipping() (FulfillmentOptionShipping, error) {
 	var body FulfillmentOptionShipping
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
 // FromFulfillmentOptionShipping overwrites any union data inside the CheckoutSessionBase_FulfillmentOptions_Item as the provided FulfillmentOptionShipping
-func (t *CheckoutSessionBase_FulfillmentOptions_Item) FromFulfillmentOptionShipping(v FulfillmentOptionShipping) error {
+func (t *FulfillmentOption) FromFulfillmentOptionShipping(v FulfillmentOptionShipping) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
 // MergeFulfillmentOptionShipping performs a merge with any union data inside the CheckoutSessionBase_FulfillmentOptions_Item, using the provided FulfillmentOptionShipping
-func (t *CheckoutSessionBase_FulfillmentOptions_Item) MergeFulfillmentOptionShipping(v FulfillmentOptionShipping) error {
+func (t *FulfillmentOption) MergeFulfillmentOptionShipping(v FulfillmentOptionShipping) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -430,21 +311,21 @@ func (t *CheckoutSessionBase_FulfillmentOptions_Item) MergeFulfillmentOptionShip
 }
 
 // AsFulfillmentOptionDigital returns the union data inside the CheckoutSessionBase_FulfillmentOptions_Item as a FulfillmentOptionDigital
-func (t CheckoutSessionBase_FulfillmentOptions_Item) AsFulfillmentOptionDigital() (FulfillmentOptionDigital, error) {
+func (t FulfillmentOption) AsFulfillmentOptionDigital() (FulfillmentOptionDigital, error) {
 	var body FulfillmentOptionDigital
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
 // FromFulfillmentOptionDigital overwrites any union data inside the CheckoutSessionBase_FulfillmentOptions_Item as the provided FulfillmentOptionDigital
-func (t *CheckoutSessionBase_FulfillmentOptions_Item) FromFulfillmentOptionDigital(v FulfillmentOptionDigital) error {
+func (t *FulfillmentOption) FromFulfillmentOptionDigital(v FulfillmentOptionDigital) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
 // MergeFulfillmentOptionDigital performs a merge with any union data inside the CheckoutSessionBase_FulfillmentOptions_Item, using the provided FulfillmentOptionDigital
-func (t *CheckoutSessionBase_FulfillmentOptions_Item) MergeFulfillmentOptionDigital(v FulfillmentOptionDigital) error {
+func (t *FulfillmentOption) MergeFulfillmentOptionDigital(v FulfillmentOptionDigital) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -456,59 +337,33 @@ func (t *CheckoutSessionBase_FulfillmentOptions_Item) MergeFulfillmentOptionDigi
 }
 
 // MarshalJSON serializes the underlying union for CheckoutSessionBase_FulfillmentOptions_Item.
-func (t CheckoutSessionBase_FulfillmentOptions_Item) MarshalJSON() ([]byte, error) {
+func (t FulfillmentOption) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
 	return b, err
 }
 
 // UnmarshalJSON loads union data for CheckoutSessionBase_FulfillmentOptions_Item.
-func (t *CheckoutSessionBase_FulfillmentOptions_Item) UnmarshalJSON(b []byte) error {
+func (t *FulfillmentOption) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }
 
 // AsMessageInfo returns the union data inside the CheckoutSessionBase_Messages_Item as a MessageInfo
-func (t CheckoutSessionBase_Messages_Item) AsMessageInfo() (MessageInfo, error) {
+func (t Message) AsMessageInfo() (MessageInfo, error) {
 	var body MessageInfo
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
 // FromMessageInfo overwrites any union data inside the CheckoutSessionBase_Messages_Item as the provided MessageInfo
-func (t *CheckoutSessionBase_Messages_Item) FromMessageInfo(v MessageInfo) error {
+func (t *Message) FromMessageInfo(v MessageInfo) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
 // MergeMessageInfo performs a merge with any union data inside the CheckoutSessionBase_Messages_Item, using the provided MessageInfo
-func (t *CheckoutSessionBase_Messages_Item) MergeMessageInfo(v MessageInfo) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsMessageError returns the union data inside the CheckoutSessionBase_Messages_Item as a MessageError
-func (t CheckoutSessionBase_Messages_Item) AsMessageError() (MessageError, error) {
-	var body MessageError
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromMessageError overwrites any union data inside the CheckoutSessionBase_Messages_Item as the provided MessageError
-func (t *CheckoutSessionBase_Messages_Item) FromMessageError(v MessageError) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeMessageError performs a merge with any union data inside the CheckoutSessionBase_Messages_Item, using the provided MessageError
-func (t *CheckoutSessionBase_Messages_Item) MergeMessageError(v MessageError) error {
+func (t *Message) MergeMessageInfo(v MessageInfo) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -520,141 +375,13 @@ func (t *CheckoutSessionBase_Messages_Item) MergeMessageError(v MessageError) er
 }
 
 // MarshalJSON serializes the underlying union for CheckoutSessionBase_Messages_Item.
-func (t CheckoutSessionBase_Messages_Item) MarshalJSON() ([]byte, error) {
+func (t Message) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
 	return b, err
 }
 
 // UnmarshalJSON loads union data for CheckoutSessionBase_Messages_Item.
-func (t *CheckoutSessionBase_Messages_Item) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsFulfillmentOptionShipping returns the union data inside the CheckoutSessionWithOrder_FulfillmentOptions_Item as a FulfillmentOptionShipping
-func (t CheckoutSessionWithOrder_FulfillmentOptions_Item) AsFulfillmentOptionShipping() (FulfillmentOptionShipping, error) {
-	var body FulfillmentOptionShipping
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromFulfillmentOptionShipping overwrites any union data inside the CheckoutSessionWithOrder_FulfillmentOptions_Item as the provided FulfillmentOptionShipping
-func (t *CheckoutSessionWithOrder_FulfillmentOptions_Item) FromFulfillmentOptionShipping(v FulfillmentOptionShipping) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeFulfillmentOptionShipping performs a merge with any union data inside the CheckoutSessionWithOrder_FulfillmentOptions_Item, using the provided FulfillmentOptionShipping
-func (t *CheckoutSessionWithOrder_FulfillmentOptions_Item) MergeFulfillmentOptionShipping(v FulfillmentOptionShipping) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsFulfillmentOptionDigital returns the union data inside the CheckoutSessionWithOrder_FulfillmentOptions_Item as a FulfillmentOptionDigital
-func (t CheckoutSessionWithOrder_FulfillmentOptions_Item) AsFulfillmentOptionDigital() (FulfillmentOptionDigital, error) {
-	var body FulfillmentOptionDigital
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromFulfillmentOptionDigital overwrites any union data inside the CheckoutSessionWithOrder_FulfillmentOptions_Item as the provided FulfillmentOptionDigital
-func (t *CheckoutSessionWithOrder_FulfillmentOptions_Item) FromFulfillmentOptionDigital(v FulfillmentOptionDigital) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeFulfillmentOptionDigital performs a merge with any union data inside the CheckoutSessionWithOrder_FulfillmentOptions_Item, using the provided FulfillmentOptionDigital
-func (t *CheckoutSessionWithOrder_FulfillmentOptions_Item) MergeFulfillmentOptionDigital(v FulfillmentOptionDigital) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// MarshalJSON serializes the underlying union for CheckoutSessionWithOrder_FulfillmentOptions_Item.
-func (t CheckoutSessionWithOrder_FulfillmentOptions_Item) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-// UnmarshalJSON loads union data for CheckoutSessionWithOrder_FulfillmentOptions_Item.
-func (t *CheckoutSessionWithOrder_FulfillmentOptions_Item) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsMessageInfo returns the union data inside the CheckoutSessionWithOrder_Messages_Item as a MessageInfo
-func (t CheckoutSessionWithOrder_Messages_Item) AsMessageInfo() (MessageInfo, error) {
-	var body MessageInfo
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromMessageInfo overwrites any union data inside the CheckoutSessionWithOrder_Messages_Item as the provided MessageInfo
-func (t *CheckoutSessionWithOrder_Messages_Item) FromMessageInfo(v MessageInfo) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeMessageInfo performs a merge with any union data inside the CheckoutSessionWithOrder_Messages_Item, using the provided MessageInfo
-func (t *CheckoutSessionWithOrder_Messages_Item) MergeMessageInfo(v MessageInfo) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsMessageError returns the union data inside the CheckoutSessionWithOrder_Messages_Item as a MessageError
-func (t CheckoutSessionWithOrder_Messages_Item) AsMessageError() (MessageError, error) {
-	var body MessageError
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromMessageError overwrites any union data inside the CheckoutSessionWithOrder_Messages_Item as the provided MessageError
-func (t *CheckoutSessionWithOrder_Messages_Item) FromMessageError(v MessageError) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeMessageError performs a merge with any union data inside the CheckoutSessionWithOrder_Messages_Item, using the provided MessageError
-func (t *CheckoutSessionWithOrder_Messages_Item) MergeMessageError(v MessageError) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// MarshalJSON serializes the underlying union for CheckoutSessionWithOrder_Messages_Item.
-func (t CheckoutSessionWithOrder_Messages_Item) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-// UnmarshalJSON loads union data for CheckoutSessionWithOrder_Messages_Item.
-func (t *CheckoutSessionWithOrder_Messages_Item) UnmarshalJSON(b []byte) error {
+func (t *Message) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }

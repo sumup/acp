@@ -18,9 +18,9 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 		Status:             CheckoutSessionBaseStatusInProgress,
 		Currency:           "USD",
 		LineItems:          []LineItem{},
-		FulfillmentOptions: make([]CheckoutSessionBase_FulfillmentOptions_Item, 0),
+		FulfillmentOptions: make([]FulfillmentOption, 0),
 		Totals:             []Total{},
-		Messages:           make([]CheckoutSessionBase_Messages_Item, 0),
+		Messages:           make([]Message, 0),
 		Links:              []Link{},
 	}
 
@@ -31,8 +31,8 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 		LineItems:          session.LineItems,
 		Totals:             session.Totals,
 		Links:              session.Links,
-		FulfillmentOptions: make([]CheckoutSessionWithOrder_FulfillmentOptions_Item, 0),
-		Messages:           make([]CheckoutSessionWithOrder_Messages_Item, 0),
+		FulfillmentOptions: make([]FulfillmentOption, 0),
+		Messages:           make([]Message, 0),
 		Order: Order{
 			Id:                "ord_123",
 			CheckoutSessionId: "cs_123",
@@ -96,7 +96,7 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/checkout_sessions/cs_123/complete",
 			body: CheckoutSessionCompleteRequest{
-				PaymentData: PaymentData{Token: "tok", Provider: PaymentDataProviderStripe},
+				PaymentData: PaymentData{Token: "tok", Provider: "sumup"},
 			},
 			setupStub: func(s *stubService) {
 				s.complete = func(ctx context.Context, id string, req CheckoutSessionCompleteRequest) (*CheckoutSessionWithOrder, error) {

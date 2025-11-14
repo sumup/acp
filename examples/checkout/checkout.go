@@ -118,8 +118,8 @@ func (s *memoryService) CreateSession(ctx context.Context, req acp.CheckoutSessi
 			{Type: acp.TermsOfUse, Url: "https://merchant.example/terms"},
 		},
 		PaymentProvider: &acp.PaymentProvider{
-			Provider:                acp.PaymentProviderProviderStripe,
-			SupportedPaymentMethods: []acp.PaymentProviderSupportedPaymentMethods{acp.Card},
+			Provider:                "sumup",
+			SupportedPaymentMethods: []acp.SupportedPaymentMethods{acp.Card},
 		},
 	}
 
@@ -322,18 +322,18 @@ func formatMoney(currency string, cents int) string {
 	return fmt.Sprintf("%s %.2f", currency, value)
 }
 
-func defaultMessages() []acp.CheckoutSessionBase_Messages_Item {
+func defaultMessages() []acp.Message {
 	info := acp.MessageInfo{
 		Type:        "info",
 		Content:     "This sample server keeps sessions in memory. Restarting the process wipes the cart.",
 		ContentType: acp.MessageInfoContentTypePlain,
 	}
-	var msg acp.CheckoutSessionBase_Messages_Item
+	var msg acp.Message
 	_ = msg.FromMessageInfo(info)
-	return []acp.CheckoutSessionBase_Messages_Item{msg}
+	return []acp.Message{msg}
 }
 
-func defaultFulfillmentOptions() []acp.CheckoutSessionBase_FulfillmentOptions_Item {
+func defaultFulfillmentOptions() []acp.FulfillmentOption {
 	soon := time.Now().Add(48 * time.Hour)
 	later := soon.Add(24 * time.Hour)
 	shipping := acp.FulfillmentOptionShipping{
@@ -357,12 +357,12 @@ func defaultFulfillmentOptions() []acp.CheckoutSessionBase_FulfillmentOptions_It
 		Type:     "digital",
 	}
 
-	opts := make([]acp.CheckoutSessionBase_FulfillmentOptions_Item, 0, 2)
-	var shippingUnion acp.CheckoutSessionBase_FulfillmentOptions_Item
+	opts := make([]acp.FulfillmentOption, 0, 2)
+	var shippingUnion acp.FulfillmentOption
 	_ = shippingUnion.FromFulfillmentOptionShipping(shipping)
 	opts = append(opts, shippingUnion)
 
-	var digitalUnion acp.CheckoutSessionBase_FulfillmentOptions_Item
+	var digitalUnion acp.FulfillmentOption
 	_ = digitalUnion.FromFulfillmentOptionDigital(digital)
 	opts = append(opts, digitalUnion)
 
@@ -395,7 +395,7 @@ func clonePaymentProvider(p *acp.PaymentProvider) *acp.PaymentProvider {
 	}
 	copy := *p
 	if p.SupportedPaymentMethods != nil {
-		copy.SupportedPaymentMethods = append([]acp.PaymentProviderSupportedPaymentMethods(nil), p.SupportedPaymentMethods...)
+		copy.SupportedPaymentMethods = append([]acp.SupportedPaymentMethods(nil), p.SupportedPaymentMethods...)
 	}
 	return &copy
 }
@@ -438,16 +438,16 @@ func cloneSession(src *acp.CheckoutSession) *acp.CheckoutSession {
 	dst.LineItems = cloneLineItems(src.LineItems)
 	dst.Totals = cloneTotals(src.Totals)
 	dst.Links = cloneLinks(src.Links)
-	dst.FulfillmentOptions = append([]acp.CheckoutSessionBase_FulfillmentOptions_Item(nil), src.FulfillmentOptions...)
-	dst.Messages = append([]acp.CheckoutSessionBase_Messages_Item(nil), src.Messages...)
+	dst.FulfillmentOptions = append([]acp.FulfillmentOption(nil), src.FulfillmentOptions...)
+	dst.Messages = append([]acp.Message(nil), src.Messages...)
 	return &dst
 }
 
-func convertFulfillmentOptions(src []acp.CheckoutSessionBase_FulfillmentOptions_Item) []acp.CheckoutSessionWithOrder_FulfillmentOptions_Item {
+func convertFulfillmentOptions(src []acp.FulfillmentOption) []acp.FulfillmentOption {
 	if len(src) == 0 {
 		return nil
 	}
-	dst := make([]acp.CheckoutSessionWithOrder_FulfillmentOptions_Item, len(src))
+	dst := make([]acp.FulfillmentOption, len(src))
 	for i := range src {
 		data, err := src[i].MarshalJSON()
 		if err != nil {
@@ -458,11 +458,11 @@ func convertFulfillmentOptions(src []acp.CheckoutSessionBase_FulfillmentOptions_
 	return dst
 }
 
-func convertMessages(src []acp.CheckoutSessionBase_Messages_Item) []acp.CheckoutSessionWithOrder_Messages_Item {
+func convertMessages(src []acp.Message) []acp.Message {
 	if len(src) == 0 {
 		return nil
 	}
-	dst := make([]acp.CheckoutSessionWithOrder_Messages_Item, len(src))
+	dst := make([]acp.Message, len(src))
 	for i := range src {
 		data, err := src[i].MarshalJSON()
 		if err != nil {

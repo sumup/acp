@@ -27,9 +27,9 @@ func TestSignatureMiddlewareAllowsValidRequest(t *testing.T) {
 				Status:             CheckoutSessionBaseStatusInProgress,
 				Currency:           "usd",
 				LineItems:          []LineItem{},
-				FulfillmentOptions: make([]CheckoutSessionBase_FulfillmentOptions_Item, 0),
+				FulfillmentOptions: make([]FulfillmentOption, 0),
 				Totals:             []Total{},
-				Messages:           make([]CheckoutSessionBase_Messages_Item, 0),
+				Messages:           make([]Message, 0),
 				Links:              []Link{},
 			}, nil
 		},
