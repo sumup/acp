@@ -2,6 +2,7 @@ package acp
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/sumup/acp/signature"
@@ -14,6 +15,14 @@ type config struct {
 	middleware            []Middleware
 	authenticator         Authenticator
 	clock                 func() time.Time
+	webhook               *webhookConfig
+}
+
+type webhookConfig struct {
+	endpoint string
+	header   string
+	secret   []byte
+	client   *http.Client
 }
 
 type Middleware func(http.HandlerFunc) http.HandlerFunc
@@ -77,5 +86,45 @@ func WithAuthenticator(auth Authenticator) Option {
 func checkoutWithClock(fn func() time.Time) Option {
 	return func(cfg *config) {
 		cfg.clock = fn
+	}
+}
+
+// WebhookOptions configure how the checkout handler emits webhook events to OpenAI.
+type WebhookOptions struct {
+	// Endpoint is the absolute URL provided by OpenAI for receiving webhook events.
+	Endpoint string
+	// HeaderName controls the signature header name (for example Merchant_Name-Signature).
+	HeaderName string
+	// SecretKey is the HMAC secret provided by OpenAI for signing webhook payloads.
+	SecretKey []byte
+	// Client allows overriding the HTTP client used for delivering webhook events.
+	Client *http.Client
+}
+
+// WithWebhookOptions configures webhook delivery for [CheckoutHandler.SendWebhook].
+func WithWebhookOptions(opts WebhookOptions) Option {
+	endpoint := strings.TrimSpace(opts.Endpoint)
+	if endpoint == "" {
+		panic("checkout: webhook endpoint is required")
+	}
+	header := strings.TrimSpace(opts.HeaderName)
+	if header == "" {
+		panic("checkout: webhook header name is required")
+	}
+	if len(opts.SecretKey) == 0 {
+		panic("checkout: webhook secret key is required")
+	}
+	secret := append([]byte(nil), opts.SecretKey...)
+	client := opts.Client
+	if client == nil {
+		client = http.DefaultClient
+	}
+	return func(cfg *config) {
+		cfg.webhook = &webhookConfig{
+			endpoint: endpoint,
+			header:   header,
+			secret:   secret,
+			client:   client,
+		}
 	}
 }
