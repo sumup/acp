@@ -21,32 +21,32 @@ func main() {
 	log.Printf("ACP sample server listening on %s", addr)
 	log.Printf("Try: curl -XPOST %s/checkout_sessions -d @- <<'JSON' ...", "http://localhost:8080")
 
-	handler := acp.NewCheckoutHandler(service)
-	log.Fatal(http.ListenAndServe(addr, cors(logging(handler))))
+	handler := acp.NewCheckoutHandler(service, acp.WithMiddleware(logging, cors))
+	log.Fatal(http.ListenAndServe(addr, handler))
 }
 
 // logging adds basic request logs without external dependencies.
-func logging(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func logging(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
 		log.Printf("%s %s -> %d (%s)", r.Method, r.URL.Path, rec.status, time.Since(start).Truncate(time.Millisecond))
-	})
+	}
 }
 
 // cors allows the browser-based testbed to call the sample server directly.
-func cors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func cors(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "POST,OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Accept,API-Version")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 		next.ServeHTTP(w, r)
-	})
+	}
 }
 
 type statusRecorder struct {
@@ -107,7 +107,7 @@ func (s *memoryService) CreateSession(ctx context.Context, req acp.CheckoutSessi
 	defer s.mu.Unlock()
 
 	session := &acp.CheckoutSession{
-		Id:                 s.nextSessionID(),
+		ID:                 s.nextSessionID(),
 		Currency:           s.currency,
 		Buyer:              cloneBuyer(req.Buyer),
 		FulfillmentAddress: cloneAddress(req.FulfillmentAddress),
@@ -129,7 +129,7 @@ func (s *memoryService) CreateSession(ctx context.Context, req acp.CheckoutSessi
 	session.Status = deriveStatus(session)
 
 	state := &sessionState{session: session}
-	s.sessions[session.Id] = state
+	s.sessions[session.ID] = state
 	return cloneSession(session), nil
 }
 
@@ -175,7 +175,7 @@ func (s *memoryService) GetSession(ctx context.Context, id string) (*acp.Checkou
 }
 
 // CompleteSession marks a session as completed and emits a mock order.
-func (s *memoryService) CompleteSession(ctx context.Context, id string, req acp.CheckoutSessionCompleteRequest) (*acp.CheckoutSessionWithOrder, error) {
+func (s *memoryService) CompleteSession(ctx context.Context, id string, req acp.CheckoutSessionCompleteRequest) (*acp.SessionWithOrder, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -184,7 +184,7 @@ func (s *memoryService) CompleteSession(ctx context.Context, id string, req acp.
 		return nil, acp.NewHTTPError(http.StatusNotFound, acp.InvalidRequest, acp.ErrorCode("not_found"), "checkout session not found")
 	}
 	session := state.session
-	if session.Status == acp.CheckoutSessionBaseStatusCanceled {
+	if session.Status == acp.CheckoutSessionStatusCanceled {
 		return nil, acp.NewHTTPError(http.StatusConflict, acp.InvalidRequest, acp.ErrorCode("canceled"), "cannot complete a canceled session")
 	}
 	if len(session.LineItems) == 0 {
@@ -194,11 +194,11 @@ func (s *memoryService) CompleteSession(ctx context.Context, id string, req acp.
 		return state.toOrderSession(), nil
 	}
 
-	session.Status = acp.CheckoutSessionBaseStatusCompleted
+	session.Status = acp.CheckoutSessionStatusCompleted
 	order := &acp.Order{
-		Id:                s.nextOrderID(),
-		CheckoutSessionId: session.Id,
-		PermalinkUrl:      fmt.Sprintf("https://merchant.example/orders/%s", session.Id),
+		ID:                s.nextOrderID(),
+		CheckoutSessionId: session.ID,
+		PermalinkUrl:      fmt.Sprintf("https://merchant.example/orders/%s", session.ID),
 	}
 	state.order = order
 
@@ -218,7 +218,7 @@ func (s *memoryService) CancelSession(ctx context.Context, id string) (*acp.Chec
 		return nil, acp.NewHTTPError(http.StatusConflict, acp.InvalidRequest, acp.ErrorCode("completed"), "completed sessions cannot be canceled")
 	}
 
-	state.session.Status = acp.CheckoutSessionBaseStatusCanceled
+	state.session.Status = acp.CheckoutSessionStatusCanceled
 	return cloneSession(state.session), nil
 }
 
@@ -240,9 +240,9 @@ func (s *memoryService) buildLineItems(items []acp.Item) ([]acp.LineItem, error)
 
 	lines := make([]acp.LineItem, 0, len(items))
 	for idx, item := range items {
-		product, ok := s.catalog[item.Id]
+		product, ok := s.catalog[item.ID]
 		if !ok {
-			return nil, acp.NewHTTPError(http.StatusBadRequest, acp.InvalidRequest, acp.ErrorCode("unknown_item"), fmt.Sprintf("items[%d]: %q is not sold by this merchant", idx, item.Id))
+			return nil, acp.NewHTTPError(http.StatusBadRequest, acp.InvalidRequest, acp.ErrorCode("unknown_item"), fmt.Sprintf("items[%d]: %q is not sold by this merchant", idx, item.ID))
 		}
 		base := product.Price * item.Quantity
 		discount := 0
@@ -250,7 +250,7 @@ func (s *memoryService) buildLineItems(items []acp.Item) ([]acp.LineItem, error)
 		subtotal := base - discount
 		total := subtotal + tax
 		lines = append(lines, acp.LineItem{
-			Id:         fmt.Sprintf("li_%s_%d", item.Id, idx),
+			ID:         fmt.Sprintf("li_%s_%d", item.ID, idx),
 			Item:       item,
 			BaseAmount: base,
 			Discount:   discount,
@@ -272,18 +272,18 @@ func (s *memoryService) nextOrderID() string {
 	return fmt.Sprintf("ord_%06d", id)
 }
 
-func deriveStatus(session *acp.CheckoutSession) acp.CheckoutSessionBaseStatus {
+func deriveStatus(session *acp.CheckoutSession) acp.CheckoutSessionStatus {
 	switch {
-	case session.Status == acp.CheckoutSessionBaseStatusCanceled:
-		return acp.CheckoutSessionBaseStatusCanceled
-	case session.Status == acp.CheckoutSessionBaseStatusCompleted:
-		return acp.CheckoutSessionBaseStatusCompleted
+	case session.Status == acp.CheckoutSessionStatusCanceled:
+		return acp.CheckoutSessionStatusCanceled
+	case session.Status == acp.CheckoutSessionStatusCompleted:
+		return acp.CheckoutSessionStatusCompleted
 	case len(session.LineItems) == 0:
-		return acp.CheckoutSessionBaseStatusInProgress
+		return acp.CheckoutSessionStatusInProgress
 	case session.PaymentProvider != nil:
-		return acp.CheckoutSessionBaseStatusReadyForPayment
+		return acp.CheckoutSessionStatusReadyForPayment
 	default:
-		return acp.CheckoutSessionBaseStatusNotReadyForPayment
+		return acp.CheckoutSessionStatusNotReadyForPayment
 	}
 }
 
@@ -337,7 +337,7 @@ func defaultFulfillmentOptions() []acp.FulfillmentOption {
 	soon := time.Now().Add(48 * time.Hour)
 	later := soon.Add(24 * time.Hour)
 	shipping := acp.FulfillmentOptionShipping{
-		Id:                   "ship_standard",
+		ID:                   "ship_standard",
 		Title:                "Standard Shipping",
 		Subtitle:             strPtr("2-4 business days"),
 		Subtotal:             formatMoney("USD", 500),
@@ -348,7 +348,7 @@ func defaultFulfillmentOptions() []acp.FulfillmentOption {
 		LatestDeliveryTime:   &later,
 	}
 	digital := acp.FulfillmentOptionDigital{
-		Id:       "pickup",
+		ID:       "pickup",
 		Title:    "In-store pickup",
 		Subtitle: strPtr("Collect in person"),
 		Subtotal: formatMoney("USD", 0),
@@ -473,21 +473,23 @@ func convertMessages(src []acp.Message) []acp.Message {
 	return dst
 }
 
-func (s *sessionState) toOrderSession() *acp.CheckoutSessionWithOrder {
-	order := &acp.CheckoutSessionWithOrder{
-		Id:                  s.session.Id,
-		Buyer:               cloneBuyer(s.session.Buyer),
-		Currency:            s.session.Currency,
-		FulfillmentAddress:  cloneAddress(s.session.FulfillmentAddress),
-		FulfillmentOptionId: s.session.FulfillmentOptionId,
-		FulfillmentOptions:  convertFulfillmentOptions(s.session.FulfillmentOptions),
-		LineItems:           cloneLineItems(s.session.LineItems),
-		Links:               cloneLinks(s.session.Links),
-		Messages:            convertMessages(s.session.Messages),
-		PaymentProvider:     clonePaymentProvider(s.session.PaymentProvider),
-		Status:              acp.CheckoutSessionWithOrderStatusCompleted,
-		Totals:              cloneTotals(s.session.Totals),
-		Order:               *s.order,
+func (s *sessionState) toOrderSession() *acp.SessionWithOrder {
+	order := &acp.SessionWithOrder{
+		CheckoutSession: acp.CheckoutSession{
+			ID:                  s.session.ID,
+			Buyer:               cloneBuyer(s.session.Buyer),
+			Currency:            s.session.Currency,
+			FulfillmentAddress:  cloneAddress(s.session.FulfillmentAddress),
+			FulfillmentOptionId: s.session.FulfillmentOptionId,
+			FulfillmentOptions:  convertFulfillmentOptions(s.session.FulfillmentOptions),
+			LineItems:           cloneLineItems(s.session.LineItems),
+			Links:               cloneLinks(s.session.Links),
+			Messages:            convertMessages(s.session.Messages),
+			PaymentProvider:     clonePaymentProvider(s.session.PaymentProvider),
+			Status:              acp.CheckoutSessionStatusCompleted,
+			Totals:              cloneTotals(s.session.Totals),
+		},
+		Order: *s.order,
 	}
 	return order
 }

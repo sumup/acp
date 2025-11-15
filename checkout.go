@@ -11,7 +11,7 @@ type CheckoutProvider interface {
 	CreateSession(ctx context.Context, req CheckoutSessionCreateRequest) (*CheckoutSession, error)
 	UpdateSession(ctx context.Context, id string, req CheckoutSessionUpdateRequest) (*CheckoutSession, error)
 	GetSession(ctx context.Context, id string) (*CheckoutSession, error)
-	CompleteSession(ctx context.Context, id string, req CheckoutSessionCompleteRequest) (*CheckoutSessionWithOrder, error)
+	CompleteSession(ctx context.Context, id string, req CheckoutSessionCompleteRequest) (*SessionWithOrder, error)
 	CancelSession(ctx context.Context, id string) (*CheckoutSession, error)
 }
 
@@ -24,9 +24,6 @@ type CheckoutHandler struct {
 
 // NewCheckoutHandler builds a [CheckoutHandler] backed by net/http's ServeMux.
 func NewCheckoutHandler(service CheckoutProvider, opts ...Option) *CheckoutHandler {
-	if service == nil {
-		panic("checkout: service is required")
-	}
 	cfg := config{
 		maxClockSkew: 5 * time.Minute,
 		clock:        time.Now,

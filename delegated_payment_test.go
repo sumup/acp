@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sumup/acp/secret"
 )
 
 func TestDelegatedPaymentHandler(t *testing.T) {
@@ -158,17 +160,17 @@ func sampleDelegatePaymentRequest() PaymentRequest {
 	expMonth := "11"
 	expYear := "2026"
 	displayLast4 := "4242"
-	checks := []PaymentMethodCardChecksPerformed{PaymentMethodCardChecksPerformedAVS}
+	checks := []CardChecksPerformed{CardChecksPerformedAVS}
 
 	return PaymentRequest{
 		PaymentMethod: PaymentMethodCard{
 			Type:                   PaymentMethodCardTypeCard,
-			CardNumberType:         PaymentMethodCardCardNumberTypeFPAN,
-			Number:                 "4242424242424242",
+			CardNumberType:         CardCardNumberTypeFPAN,
+			Number:                 secret.New("4242424242424242"),
 			ExpMonth:               &expMonth,
 			ExpYear:                &expYear,
 			DisplayLast4:           &displayLast4,
-			DisplayCardFundingType: PaymentMethodCardDisplayCardFundingTypeCredit,
+			DisplayCardFundingType: CardFundingTypeCredit,
 			Metadata:               map[string]string{"issuer": "acme"},
 			ChecksPerformed:        checks,
 		},

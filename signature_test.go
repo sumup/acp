@@ -23,8 +23,8 @@ func TestSignatureMiddlewareAllowsValidRequest(t *testing.T) {
 	handler := NewCheckoutHandler(&stubService{
 		create: func(ctx context.Context, req CheckoutSessionCreateRequest) (*CheckoutSession, error) {
 			return &CheckoutSession{
-				Id:                 "cs_123",
-				Status:             CheckoutSessionBaseStatusInProgress,
+				ID:                 "cs_123",
+				Status:             CheckoutSessionStatusInProgress,
 				Currency:           "usd",
 				LineItems:          []LineItem{},
 				FulfillmentOptions: make([]FulfillmentOption, 0),

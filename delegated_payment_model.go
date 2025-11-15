@@ -1,6 +1,10 @@
 package acp
 
-import "time"
+import (
+	"time"
+
+	"github.com/sumup/acp/secret"
+)
 
 // PaymentRequest mirrors the ACP DelegatePaymentRequest payload described in the spec:
 // https://developers.openai.com/commerce/specs/payment.
@@ -10,7 +14,7 @@ type PaymentRequest struct {
 	// Use cases that the stored credential can be applied to.
 	Allowance Allowance `json:"allowance" validate:"required"`
 	// Address associated with the payment method.
-	BillingAddress *DelegatedPaymentAddress `json:"billing_address,omitempty" validate:"omitempty"`
+	BillingAddress *Address `json:"billing_address,omitempty" validate:"omitempty"`
 	// Arbitrary key/value pairs.
 	Metadata map[string]string `json:"metadata" validate:"required,map_present"`
 	// List of risk signals.
@@ -34,9 +38,9 @@ type PaymentMethodCard struct {
 	// The type of card number. Network tokens are preferred with fallback to FPAN. See [PCI Scope] for more details.
 	//
 	// [PCI Scope]: https://developers.openai.com/commerce/guides/production#security-and-compliance
-	CardNumberType PaymentMethodCardCardNumberType `json:"card_number_type" validate:"required,oneof=fpan network_token"`
+	CardNumberType CardNumberType `json:"card_number_type" validate:"required,oneof=fpan network_token"`
 	// Card number.
-	Number string `json:"number" validate:"required"`
+	Number secret.Secret[string] `json:"number" validate:"required"`
 	// Expiry month.
 	ExpMonth *string `json:"exp_month,omitempty" validate:"omitempty,len=2,numeric"`
 	// Expiry year.
@@ -48,7 +52,7 @@ type PaymentMethodCard struct {
 	// In case of non-PAN, this is the original last 4 digits of the card for customer display.
 	DisplayLast4 *string `json:"display_last4,omitempty" validate:"omitempty,len=4"`
 	// Funding type of the card to display.
-	DisplayCardFundingType PaymentMethodCardDisplayCardFundingType `json:"display_card_funding_type" validate:"required,oneof=credit debit prepaid"`
+	DisplayCardFundingType CardFundingType `json:"display_card_funding_type" validate:"required,oneof=credit debit prepaid"`
 	// Brand of the card to display.
 	//
 	// Exapmple: "Visa", "amex", "discover"
@@ -62,7 +66,7 @@ type PaymentMethodCard struct {
 	// Electronic Commerce Indicator / Security Level Indicator provided with network tokens.
 	ECIValue *string `json:"eci_value,omitempty"`
 	// Checks already performed on the card.
-	ChecksPerformed []PaymentMethodCardChecksPerformed `json:"checks_performed,omitempty" validate:"omitempty,dive,required"`
+	ChecksPerformed []CardChecksPerformed `json:"checks_performed,omitempty" validate:"omitempty,dive,required"`
 	// Arbitrary key/value pairs.
 	Metadata map[string]string `json:"metadata" validate:"required,map_present"`
 }
@@ -93,45 +97,34 @@ type RiskSignal struct {
 	Score int `json:"score" validate:"gte=0"`
 }
 
-// DelegatedPaymentAddress corresponds to the billing address object.
-type DelegatedPaymentAddress struct {
-	Name       string  `json:"name" validate:"required"`
-	LineOne    string  `json:"line_one" validate:"required"`
-	LineTwo    *string `json:"line_two,omitempty"`
-	City       string  `json:"city" validate:"required"`
-	State      string  `json:"state" validate:"required"`
-	Country    string  `json:"country" validate:"required,len=2,uppercase"`
-	PostalCode string  `json:"postal_code" validate:"required"`
-}
-
 type PaymentMethodCardType string
 
 const (
 	PaymentMethodCardTypeCard PaymentMethodCardType = "card"
 )
 
-type PaymentMethodCardCardNumberType string
+type CardNumberType string
 
 const (
-	PaymentMethodCardCardNumberTypeFPAN         PaymentMethodCardCardNumberType = "fpan"
-	PaymentMethodCardCardNumberTypeNetworkToken PaymentMethodCardCardNumberType = "network_token"
+	CardCardNumberTypeFPAN         CardNumberType = "fpan"
+	CardCardNumberTypeNetworkToken CardNumberType = "network_token"
 )
 
-type PaymentMethodCardDisplayCardFundingType string
+type CardFundingType string
 
 const (
-	PaymentMethodCardDisplayCardFundingTypeCredit  PaymentMethodCardDisplayCardFundingType = "credit"
-	PaymentMethodCardDisplayCardFundingTypeDebit   PaymentMethodCardDisplayCardFundingType = "debit"
-	PaymentMethodCardDisplayCardFundingTypePrepaid PaymentMethodCardDisplayCardFundingType = "prepaid"
+	CardFundingTypeCredit  CardFundingType = "credit"
+	CardFundingTypeDebit   CardFundingType = "debit"
+	CardFundingTypePrepaid CardFundingType = "prepaid"
 )
 
-type PaymentMethodCardChecksPerformed string
+type CardChecksPerformed string
 
 const (
-	PaymentMethodCardChecksPerformedAVS  PaymentMethodCardChecksPerformed = "avs"
-	PaymentMethodCardChecksPerformedCVV  PaymentMethodCardChecksPerformed = "cvv"
-	PaymentMethodCardChecksPerformedANI  PaymentMethodCardChecksPerformed = "ani"
-	PaymentMethodCardChecksPerformedAUTH PaymentMethodCardChecksPerformed = "auth0"
+	CardChecksPerformedAVS  CardChecksPerformed = "avs"
+	CardChecksPerformedCVV  CardChecksPerformed = "cvv"
+	CardChecksPerformedANI  CardChecksPerformed = "ani"
+	CardChecksPerformedAUTH CardChecksPerformed = "auth0"
 )
 
 type AllowanceReason string

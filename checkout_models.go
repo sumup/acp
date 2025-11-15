@@ -7,28 +7,16 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
-// CheckoutSessionBaseStatus defines model for CheckoutSessionBase.Status.
-type CheckoutSessionBaseStatus string
+// CheckoutSessionStatus defines model for CheckoutSessionBase.Status.
+type CheckoutSessionStatus string
 
 // Defines values for CheckoutSessionBaseStatus.
 const (
-	CheckoutSessionBaseStatusCanceled           CheckoutSessionBaseStatus = "canceled"
-	CheckoutSessionBaseStatusCompleted          CheckoutSessionBaseStatus = "completed"
-	CheckoutSessionBaseStatusInProgress         CheckoutSessionBaseStatus = "in_progress"
-	CheckoutSessionBaseStatusNotReadyForPayment CheckoutSessionBaseStatus = "not_ready_for_payment"
-	CheckoutSessionBaseStatusReadyForPayment    CheckoutSessionBaseStatus = "ready_for_payment"
-)
-
-// CheckoutSessionWithOrderStatus defines model for CheckoutSessionWithOrder.Status.
-type CheckoutSessionWithOrderStatus string
-
-// Defines values for CheckoutSessionWithOrderStatus.
-const (
-	CheckoutSessionWithOrderStatusCanceled           CheckoutSessionWithOrderStatus = "canceled"
-	CheckoutSessionWithOrderStatusCompleted          CheckoutSessionWithOrderStatus = "completed"
-	CheckoutSessionWithOrderStatusInProgress         CheckoutSessionWithOrderStatus = "in_progress"
-	CheckoutSessionWithOrderStatusNotReadyForPayment CheckoutSessionWithOrderStatus = "not_ready_for_payment"
-	CheckoutSessionWithOrderStatusReadyForPayment    CheckoutSessionWithOrderStatus = "ready_for_payment"
+	CheckoutSessionStatusCanceled           CheckoutSessionStatus = "canceled"
+	CheckoutSessionStatusCompleted          CheckoutSessionStatus = "completed"
+	CheckoutSessionStatusInProgress         CheckoutSessionStatus = "in_progress"
+	CheckoutSessionStatusNotReadyForPayment CheckoutSessionStatus = "not_ready_for_payment"
+	CheckoutSessionStatusReadyForPayment    CheckoutSessionStatus = "ready_for_payment"
 )
 
 // LinkType defines model for Link.Type.
@@ -97,13 +85,13 @@ const (
 
 // Address defines model for Address.
 type Address struct {
-	City       string  `json:"city"`
-	Country    string  `json:"country"`
+	Name       string  `json:"name"`
 	LineOne    string  `json:"line_one"`
 	LineTwo    *string `json:"line_two,omitempty"`
-	Name       string  `json:"name"`
 	PostalCode string  `json:"postal_code"`
+	City       string  `json:"city"`
 	State      string  `json:"state"`
+	Country    string  `json:"country"`
 }
 
 // Buyer defines model for Buyer.
@@ -115,22 +103,19 @@ type Buyer struct {
 }
 
 // CheckoutSession defines model for CheckoutSession.
-type CheckoutSession = CheckoutSessionBase
-
-// CheckoutSessionBase defines model for CheckoutSessionBase.
-type CheckoutSessionBase struct {
-	Buyer               *Buyer                    `json:"buyer,omitempty"`
-	Currency            string                    `json:"currency"`
-	FulfillmentAddress  *Address                  `json:"fulfillment_address,omitempty"`
-	FulfillmentOptionId *string                   `json:"fulfillment_option_id,omitempty"`
-	FulfillmentOptions  []FulfillmentOption       `json:"fulfillment_options"`
-	Id                  string                    `json:"id"`
-	LineItems           []LineItem                `json:"line_items"`
-	Links               []Link                    `json:"links"`
-	Messages            []Message                 `json:"messages"`
-	PaymentProvider     *PaymentProvider          `json:"payment_provider,omitempty"`
-	Status              CheckoutSessionBaseStatus `json:"status"`
-	Totals              []Total                   `json:"totals"`
+type CheckoutSession struct {
+	ID                  string                `json:"id"`
+	Buyer               *Buyer                `json:"buyer,omitempty"`
+	Currency            string                `json:"currency"`
+	FulfillmentAddress  *Address              `json:"fulfillment_address,omitempty"`
+	FulfillmentOptionId *string               `json:"fulfillment_option_id,omitempty"`
+	FulfillmentOptions  []FulfillmentOption   `json:"fulfillment_options"`
+	LineItems           []LineItem            `json:"line_items"`
+	Links               []Link                `json:"links"`
+	Messages            []Message             `json:"messages"`
+	PaymentProvider     *PaymentProvider      `json:"payment_provider,omitempty"`
+	Status              CheckoutSessionStatus `json:"status"`
+	Totals              []Total               `json:"totals"`
 }
 
 // FulfillmentOption defines model for CheckoutSessionBase.fulfillment_options.Item.
@@ -164,26 +149,15 @@ type CheckoutSessionUpdateRequest struct {
 	Items               *[]Item  `json:"items,omitempty"`
 }
 
-// CheckoutSessionWithOrder defines model for CheckoutSessionWithOrder.
-type CheckoutSessionWithOrder struct {
-	Buyer               *Buyer                         `json:"buyer,omitempty"`
-	Currency            string                         `json:"currency"`
-	FulfillmentAddress  *Address                       `json:"fulfillment_address,omitempty"`
-	FulfillmentOptionId *string                        `json:"fulfillment_option_id,omitempty"`
-	FulfillmentOptions  []FulfillmentOption            `json:"fulfillment_options"`
-	Id                  string                         `json:"id"`
-	LineItems           []LineItem                     `json:"line_items"`
-	Links               []Link                         `json:"links"`
-	Messages            []Message                      `json:"messages"`
-	Order               Order                          `json:"order"`
-	PaymentProvider     *PaymentProvider               `json:"payment_provider,omitempty"`
-	Status              CheckoutSessionWithOrderStatus `json:"status"`
-	Totals              []Total                        `json:"totals"`
+// SessionWithOrder defines model for SessionWithOrder.
+type SessionWithOrder struct {
+	CheckoutSession
+	Order Order `json:"order"`
 }
 
 // FulfillmentOptionDigital defines model for FulfillmentOptionDigital.
 type FulfillmentOptionDigital struct {
-	Id       string  `json:"id"`
+	ID       string  `json:"id"`
 	Subtitle *string `json:"subtitle,omitempty"`
 	Subtotal string  `json:"subtotal"`
 	Tax      string  `json:"tax"`
@@ -194,9 +168,9 @@ type FulfillmentOptionDigital struct {
 
 // FulfillmentOptionShipping defines model for FulfillmentOptionShipping.
 type FulfillmentOptionShipping struct {
+	ID                   string     `json:"id"`
 	Carrier              *string    `json:"carrier,omitempty"`
 	EarliestDeliveryTime *time.Time `json:"earliest_delivery_time,omitempty"`
-	Id                   string     `json:"id"`
 	LatestDeliveryTime   *time.Time `json:"latest_delivery_time,omitempty"`
 	Subtitle             *string    `json:"subtitle,omitempty"`
 	Subtotal             string     `json:"subtotal"`
@@ -208,15 +182,15 @@ type FulfillmentOptionShipping struct {
 
 // Item defines model for Item.
 type Item struct {
-	Id       string `json:"id"`
+	ID       string `json:"id"`
 	Quantity int    `json:"quantity"`
 }
 
 // LineItem defines model for LineItem.
 type LineItem struct {
+	ID         string `json:"id"`
 	BaseAmount int    `json:"base_amount"`
 	Discount   int    `json:"discount"`
-	Id         string `json:"id"`
 	Item       Item   `json:"item"`
 	Subtotal   int    `json:"subtotal"`
 	Tax        int    `json:"tax"`
@@ -241,8 +215,8 @@ type MessageInfo struct {
 
 // Order defines model for Order.
 type Order struct {
+	ID                string `json:"id"`
 	CheckoutSessionId string `json:"checkout_session_id"`
-	Id                string `json:"id"`
 	PermalinkUrl      string `json:"permalink_url"`
 }
 
@@ -271,18 +245,6 @@ type Total struct {
 	DisplayText string    `json:"display_text"`
 	Type        TotalType `json:"type"`
 }
-
-// AcceptLanguage defines model for AcceptLanguage.
-type AcceptLanguage = string
-
-// IdempotencyKey defines model for IdempotencyKey.
-type IdempotencyKey = string
-
-// RequestId defines model for RequestId.
-type RequestId = string
-
-// Timestamp defines model for Timestamp.
-type Timestamp = time.Time
 
 // AsFulfillmentOptionShipping returns the union data inside the CheckoutSessionBase_FulfillmentOptions_Item as a FulfillmentOptionShipping
 func (t FulfillmentOption) AsFulfillmentOptionShipping() (FulfillmentOptionShipping, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -19,23 +20,23 @@ func main() {
 	log.Printf("ACP delegated payment sample listening on %s", addr)
 	log.Printf("Try: curl -XPOST %s/agentic_commerce/delegate_payment -d @- <<'JSON' ...", "http://localhost:8080")
 
-	handler := acp.NewDelegatedPaymentHandler(service)
-	log.Fatal(http.ListenAndServe(addr, cors(logging(handler))))
+	handler := acp.NewDelegatedPaymentHandler(service, acp.WithMiddleware(logging, cors))
+	log.Fatal(http.ListenAndServe(addr, handler))
 }
 
 // logging adds basic request logs without external dependencies.
-func logging(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func logging(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
 		log.Printf("%s %s -> %d (%s)", r.Method, r.URL.Path, rec.status, time.Since(start).Truncate(time.Millisecond))
-	})
+	}
 }
 
 // cors allows the browser-based testbed to call the sample server directly.
-func cors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func cors(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST,OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Accept,API-Version")
@@ -44,7 +45,7 @@ func cors(next http.Handler) http.Handler {
 			return
 		}
 		next.ServeHTTP(w, r)
-	})
+	}
 }
 
 type statusRecorder struct {
@@ -116,8 +117,6 @@ func cloneStringMap(src map[string]string) map[string]string {
 		return nil
 	}
 	dst := make(map[string]string, len(src))
-	for k, v := range src {
-		dst[k] = v
-	}
+	maps.Copy(dst, src)
 	return dst
 }

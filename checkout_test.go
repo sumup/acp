@@ -14,8 +14,8 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 	t.Parallel()
 
 	session := &CheckoutSession{
-		Id:                 "cs_123",
-		Status:             CheckoutSessionBaseStatusInProgress,
+		ID:                 "cs_123",
+		Status:             CheckoutSessionStatusInProgress,
 		Currency:           "USD",
 		LineItems:          []LineItem{},
 		FulfillmentOptions: make([]FulfillmentOption, 0),
@@ -24,17 +24,19 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 		Links:              []Link{},
 	}
 
-	orderSession := &CheckoutSessionWithOrder{
-		Id:                 session.Id,
-		Status:             CheckoutSessionWithOrderStatusInProgress,
-		Currency:           session.Currency,
-		LineItems:          session.LineItems,
-		Totals:             session.Totals,
-		Links:              session.Links,
-		FulfillmentOptions: make([]FulfillmentOption, 0),
-		Messages:           make([]Message, 0),
+	orderSession := &SessionWithOrder{
+		CheckoutSession: CheckoutSession{
+			ID:                 session.ID,
+			Status:             CheckoutSessionStatusInProgress,
+			Currency:           session.Currency,
+			LineItems:          session.LineItems,
+			Totals:             session.Totals,
+			Links:              session.Links,
+			FulfillmentOptions: make([]FulfillmentOption, 0),
+			Messages:           make([]Message, 0),
+		},
 		Order: Order{
-			Id:                "ord_123",
+			ID:                "ord_123",
 			CheckoutSessionId: "cs_123",
 			PermalinkUrl:      "https://example.com/orders/123",
 		},
@@ -51,7 +53,7 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/checkout_sessions",
 			body: CheckoutSessionCreateRequest{
-				Items: []Item{{Id: "sku_1", Quantity: 1}},
+				Items: []Item{{ID: "sku_1", Quantity: 1}},
 			},
 			setupStub: func(s *stubService) {
 				s.create = func(ctx context.Context, req CheckoutSessionCreateRequest) (*CheckoutSession, error) {
@@ -80,7 +82,7 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/checkout_sessions/cs_123",
 			body: CheckoutSessionUpdateRequest{
-				Items: &[]Item{{Id: "sku_1", Quantity: 2}},
+				Items: &[]Item{{ID: "sku_1", Quantity: 2}},
 			},
 			setupStub: func(s *stubService) {
 				s.update = func(ctx context.Context, id string, req CheckoutSessionUpdateRequest) (*CheckoutSession, error) {
@@ -99,7 +101,7 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 				PaymentData: PaymentData{Token: "tok", Provider: "sumup"},
 			},
 			setupStub: func(s *stubService) {
-				s.complete = func(ctx context.Context, id string, req CheckoutSessionCompleteRequest) (*CheckoutSessionWithOrder, error) {
+				s.complete = func(ctx context.Context, id string, req CheckoutSessionCompleteRequest) (*SessionWithOrder, error) {
 					return orderSession, nil
 				}
 			},
@@ -202,7 +204,7 @@ type stubService struct {
 	create   func(context.Context, CheckoutSessionCreateRequest) (*CheckoutSession, error)
 	update   func(context.Context, string, CheckoutSessionUpdateRequest) (*CheckoutSession, error)
 	get      func(context.Context, string) (*CheckoutSession, error)
-	complete func(context.Context, string, CheckoutSessionCompleteRequest) (*CheckoutSessionWithOrder, error)
+	complete func(context.Context, string, CheckoutSessionCompleteRequest) (*SessionWithOrder, error)
 	cancel   func(context.Context, string) (*CheckoutSession, error)
 }
 
@@ -227,7 +229,7 @@ func (s *stubService) GetSession(ctx context.Context, id string) (*CheckoutSessi
 	return nil, NewHTTPError(http.StatusNotImplemented, InvalidRequest, ErrorCode("not_implemented"), "get not implemented")
 }
 
-func (s *stubService) CompleteSession(ctx context.Context, id string, req CheckoutSessionCompleteRequest) (*CheckoutSessionWithOrder, error) {
+func (s *stubService) CompleteSession(ctx context.Context, id string, req CheckoutSessionCompleteRequest) (*SessionWithOrder, error) {
 	if s.complete != nil {
 		return s.complete(ctx, id, req)
 	}

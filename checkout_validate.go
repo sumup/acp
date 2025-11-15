@@ -11,7 +11,7 @@ func (r CheckoutSessionCreateRequest) Validate() error {
 		return errors.New("items must contain at least one entry")
 	}
 	for i, item := range r.Items {
-		if item.Id == "" {
+		if item.ID == "" {
 			return fmt.Errorf("items[%d]: id is required", i)
 		}
 		if item.Quantity <= 0 {
@@ -30,7 +30,7 @@ func (r CheckoutSessionCreateRequest) Validate() error {
 func (r CheckoutSessionUpdateRequest) Validate() error {
 	if r.Items != nil {
 		for i, item := range *r.Items {
-			if item.Id == "" {
+			if item.ID == "" {
 				return fmt.Errorf("items[%d]: id is required", i)
 			}
 			if item.Quantity <= 0 {
