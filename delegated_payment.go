@@ -62,7 +62,9 @@ func NewDelegatedPaymentHandler(service DelegatedPaymentProvider, opts ...Option
 
 // ServeHTTP satisfies http.Handler.
 func (h *DelegatedPaymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.mux.ServeHTTP(w, r)
+	requestCtx := requestContextFromRequest(r)
+	ctx := contextWithRequestContext(r.Context(), requestCtx)
+	h.mux.ServeHTTP(w, r.WithContext(ctx))
 }
 
 func (h *DelegatedPaymentHandler) registerRoutes(middleware ...Middleware) {

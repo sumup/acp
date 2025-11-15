@@ -57,7 +57,9 @@ func NewCheckoutHandler(service CheckoutProvider, opts ...Option) *CheckoutHandl
 
 // ServeHTTP satisfies http.Handler.
 func (h *CheckoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.mux.ServeHTTP(w, r)
+	requestCtx := requestContextFromRequest(r)
+	ctx := contextWithRequestContext(r.Context(), requestCtx)
+	h.mux.ServeHTTP(w, r.WithContext(ctx))
 }
 
 func (h *CheckoutHandler) registerRoutes(middleware ...Middleware) {
