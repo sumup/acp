@@ -58,6 +58,15 @@ curl -sS -X POST http://localhost:8080/checkout_sessions/<session_id>/complete \
 
 Feel free to copy this sample into your own project and swap the in-memory store for your real product catalog, fulfillment rules, and payment hooks.
 
+To see webhook delivery end-to-end, export the environment variables below before starting the sample server. The handler will POST an `order_created` event every time a checkout session completes.
+
+```bash
+export ACP_WEBHOOK_ENDPOINT="https://webhook.site/your-endpoint"
+export ACP_WEBHOOK_HEADER="Merchant_Name-Signature"
+export ACP_WEBHOOK_SECRET="super-secret"
+go run ./examples/checkout
+```
+
 ### Delegated payment sample
 
 ```bash
