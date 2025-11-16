@@ -15,131 +15,135 @@ import (
 	"github.com/sumup/acp/signature"
 )
 
-func TestSignatureMiddlewareAllowsValidRequest(t *testing.T) {
+func TestSignatureMiddleware(t *testing.T) {
 	t.Parallel()
 
-	key := []byte("secret")
-	ts := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
-	handler := NewCheckoutHandler(&stubService{
-		create: func(ctx context.Context, req CheckoutSessionCreateRequest) (*CheckoutSession, error) {
-			return &CheckoutSession{
-				ID:                 "cs_123",
-				Status:             CheckoutSessionStatusInProgress,
-				Currency:           "usd",
-				LineItems:          []LineItem{},
-				FulfillmentOptions: make([]FulfillmentOption, 0),
-				Totals:             []Total{},
-				Messages:           make([]Message, 0),
-				Links:              []Link{},
-			}, nil
-		},
-	}, WithSignatureVerifier(signature.HMACVerifier{Key: key}), checkoutWithClock(func() time.Time {
-		return ts.Add(30 * time.Second)
-	}))
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 
-	body := []byte(`{"items":[{"id":"sku_1","quantity":1}]}`)
-	canonical, err := signature.CanonicalizeJSONBody(body)
-	if err != nil {
-		t.Fatalf("canonicalize: %v", err)
-	}
-	signature := signFixture(key, ts, canonical)
+		key := []byte("secret")
+		ts := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+		handler := NewCheckoutHandler(&stubService{
+			create: func(ctx context.Context, req CheckoutSessionCreateRequest) (*CheckoutSession, error) {
+				return &CheckoutSession{
+					ID:                 "cs_123",
+					Status:             CheckoutSessionStatusInProgress,
+					Currency:           "usd",
+					LineItems:          []LineItem{},
+					FulfillmentOptions: make([]FulfillmentOption, 0),
+					Totals:             []Total{},
+					Messages:           make([]Message, 0),
+					Links:              []Link{},
+				}, nil
+			},
+		}, WithSignatureVerifier(signature.HMACVerifier{Key: key}), checkoutWithClock(func() time.Time {
+			return ts.Add(30 * time.Second)
+		}))
 
-	req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Signature", signature)
-	req.Header.Set("Timestamp", ts.Format(time.RFC3339Nano))
-	rec := httptest.NewRecorder()
+		body := []byte(`{"items":[{"id":"sku_1","quantity":1}]}`)
+		canonical, err := signature.CanonicalizeJSONBody(body)
+		if err != nil {
+			t.Fatalf("canonicalize: %v", err)
+		}
+		signature := signFixture(key, ts, canonical)
 
-	handler.ServeHTTP(rec, req)
+		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Signature", signature)
+		req.Header.Set("Timestamp", ts.Format(time.RFC3339Nano))
+		rec := httptest.NewRecorder()
 
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected 201 got %d body=%s", rec.Code, rec.Body.String())
-	}
-}
+		handler.ServeHTTP(rec, req)
 
-func TestSignatureMiddlewareRejectsInvalidSignature(t *testing.T) {
-	t.Parallel()
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("expected 201 got %d body=%s", rec.Code, rec.Body.String())
+		}
+	})
 
-	key := []byte("secret")
-	ts := time.Now().UTC()
-	handler := NewCheckoutHandler(&stubService{
-		create: func(ctx context.Context, req CheckoutSessionCreateRequest) (*CheckoutSession, error) {
-			return &CheckoutSession{}, nil
-		},
-	}, WithSignatureVerifier(signature.HMACVerifier{Key: key}), checkoutWithClock(func() time.Time {
-		return ts
-	}))
+	t.Run("invalid", func(t *testing.T) {
+		t.Parallel()
 
-	body := []byte(`{"items":[{"id":"sku_1","quantity":1}]}`)
-	req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Signature", "bogus")
-	req.Header.Set("Timestamp", ts.Format(time.RFC3339Nano))
-	rec := httptest.NewRecorder()
+		key := []byte("secret")
+		ts := time.Now().UTC()
+		handler := NewCheckoutHandler(&stubService{
+			create: func(ctx context.Context, req CheckoutSessionCreateRequest) (*CheckoutSession, error) {
+				return &CheckoutSession{}, nil
+			},
+		}, WithSignatureVerifier(signature.HMACVerifier{Key: key}), checkoutWithClock(func() time.Time {
+			return ts
+		}))
 
-	handler.ServeHTTP(rec, req)
+		body := []byte(`{"items":[{"id":"sku_1","quantity":1}]}`)
+		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Signature", "bogus")
+		req.Header.Set("Timestamp", ts.Format(time.RFC3339Nano))
+		rec := httptest.NewRecorder()
 
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401 got %d", rec.Code)
-	}
-}
+		handler.ServeHTTP(rec, req)
 
-func TestSignatureMiddlewareRejectsSkew(t *testing.T) {
-	t.Parallel()
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 got %d", rec.Code)
+		}
+	})
 
-	key := []byte("secret")
-	ts := time.Now().UTC()
-	handler := NewCheckoutHandler(&stubService{
-		create: func(ctx context.Context, req CheckoutSessionCreateRequest) (*CheckoutSession, error) {
-			return &CheckoutSession{}, nil
-		},
-	}, WithSignatureVerifier(signature.HMACVerifier{Key: key}), WithMaxClockSkew(time.Minute), checkoutWithClock(func() time.Time {
-		return ts.Add(2 * time.Minute)
-	}))
+	t.Run("reject skew", func(t *testing.T) {
+		t.Parallel()
 
-	body := []byte(`{"items":[{"id":"sku_1","quantity":1}]}`)
-	canonical, err := signature.CanonicalizeJSONBody(body)
-	if err != nil {
-		t.Fatalf("canonicalize: %v", err)
-	}
-	signature := signFixture(key, ts, canonical)
+		key := []byte("secret")
+		ts := time.Now().UTC()
+		handler := NewCheckoutHandler(&stubService{
+			create: func(ctx context.Context, req CheckoutSessionCreateRequest) (*CheckoutSession, error) {
+				return &CheckoutSession{}, nil
+			},
+		}, WithSignatureVerifier(signature.HMACVerifier{Key: key}), WithMaxClockSkew(time.Minute), checkoutWithClock(func() time.Time {
+			return ts.Add(2 * time.Minute)
+		}))
 
-	req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Signature", signature)
-	req.Header.Set("Timestamp", ts.Format(time.RFC3339Nano))
-	rec := httptest.NewRecorder()
+		body := []byte(`{"items":[{"id":"sku_1","quantity":1}]}`)
+		canonical, err := signature.CanonicalizeJSONBody(body)
+		if err != nil {
+			t.Fatalf("canonicalize: %v", err)
+		}
+		signature := signFixture(key, ts, canonical)
 
-	handler.ServeHTTP(rec, req)
+		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Signature", signature)
+		req.Header.Set("Timestamp", ts.Format(time.RFC3339Nano))
+		rec := httptest.NewRecorder()
 
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401 got %d", rec.Code)
-	}
-	if want, got := "stale_timestamp", getErrorCode(rec.Body.Bytes()); want != got {
-		t.Fatalf("expected code %s got %s", want, got)
-	}
-}
+		handler.ServeHTTP(rec, req)
 
-func TestSignatureMiddlewareRequiresHeadersWhenEnforced(t *testing.T) {
-	t.Parallel()
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 got %d", rec.Code)
+		}
+		if want, got := "stale_timestamp", getErrorCode(rec.Body.Bytes()); want != got {
+			t.Fatalf("expected code %s got %s", want, got)
+		}
+	})
 
-	handler := NewCheckoutHandler(&stubService{
-		get: func(ctx context.Context, id string) (*CheckoutSession, error) {
-			return &CheckoutSession{}, nil
-		},
-	}, WithSignatureVerifier(signature.HMACVerifier{Key: []byte("secret")}), WithRequireSignedRequests(), checkoutWithClock(time.Now))
+	t.Run("middleware required when signatures enforced", func(t *testing.T) {
+		t.Parallel()
 
-	req := httptest.NewRequest(http.MethodGet, "/checkout_sessions/cs_123", nil)
-	rec := httptest.NewRecorder()
+		handler := NewCheckoutHandler(&stubService{
+			get: func(ctx context.Context, id string) (*CheckoutSession, error) {
+				return &CheckoutSession{}, nil
+			},
+		}, WithSignatureVerifier(signature.HMACVerifier{Key: []byte("secret")}), WithRequireSignedRequests(), checkoutWithClock(time.Now))
 
-	handler.ServeHTTP(rec, req)
+		req := httptest.NewRequest(http.MethodGet, "/checkout_sessions/cs_123", nil)
+		rec := httptest.NewRecorder()
 
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401 got %d", rec.Code)
-	}
-	if want, got := "signature_required", getErrorCode(rec.Body.Bytes()); want != got {
-		t.Fatalf("expected code %s got %s", want, got)
-	}
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 got %d", rec.Code)
+		}
+		if want, got := "signature_required", getErrorCode(rec.Body.Bytes()); want != got {
+			t.Fatalf("expected code %s got %s", want, got)
+		}
+	})
 }
 
 func signFixture(key []byte, ts time.Time, canonical []byte) string {

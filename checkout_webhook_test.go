@@ -25,10 +25,10 @@ func TestCheckoutHandlerSendWebhook(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	handler := NewCheckoutHandler(&stubService{}, WithWebhookOptions(WebhookOptions{
-		Endpoint:   srv.URL,
-		HeaderName: "Merchant_Name-Signature",
-		SecretKey:  []byte("super-secret"),
-		Client:     srv.Client(),
+		Endpoint:     srv.URL,
+		MerchantName: "Merchant Name",
+		SecretKey:    []byte("super-secret"),
+		Client:       srv.Client(),
 	}))
 
 	event := OrderCreate{

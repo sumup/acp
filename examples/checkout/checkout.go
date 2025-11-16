@@ -53,9 +53,9 @@ func webhookOptionsFromEnv() (*acp.WebhookOptions, error) {
 		return nil, fmt.Errorf("ACP_WEBHOOK_* variables must all be set to enable webhook delivery")
 	}
 	return &acp.WebhookOptions{
-		Endpoint:   endpoint,
-		HeaderName: header,
-		SecretKey:  []byte(secret),
+		Endpoint:     endpoint,
+		MerchantName: header,
+		SecretKey:    []byte(secret),
 	}, nil
 }
 

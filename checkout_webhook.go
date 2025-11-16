@@ -99,13 +99,13 @@ func (h *CheckoutHandler) SendWebhook(ctx context.Context, data EventData) error
 	if err != nil {
 		return fmt.Errorf("checkout: marshal webhook payload: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.cfg.webhook.endpoint, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.cfg.webhook.endpoint.String(), bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("checkout: build webhook request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("API-Version", APIVersion)
-	req.Header.Set(h.cfg.webhook.header, signWebhookPayload(h.cfg.webhook.secret, body))
+	req.Header.Set(h.cfg.webhook.signatureHeader, signWebhookPayload(h.cfg.webhook.secret, body))
 
 	resp, err := h.cfg.webhook.client.Do(req)
 	if err != nil {
