@@ -110,18 +110,21 @@ type WebhookSender interface {
 //   - endpoint is the absolute URL provided by OpenAI for receiving webhook events.
 //   - merchantName controls the signature header name (the header name is Merchant_Name-Signature).
 //   - secret is the HMAC secret provided by OpenAI for signing webhook payloads.
-func (h *CheckoutHandler) GetWebhookSender(endpoint, merchantName string, secret []byte, opts ...WebhookOption) WebhookSender {
+func (h *CheckoutHandler) GetWebhookSender(endpoint, merchantName string, secret []byte, opts ...WebhookOption) (WebhookSender, error) {
 	endpointURL, err := url.Parse(endpoint)
 	if err != nil {
-		panic(fmt.Errorf("with webhook: parse endpoint url: %w", err))
+		return nil, fmt.Errorf("parse endpoint url: %w", err)
 	}
 
 	merchantName = strings.TrimSpace(merchantName)
 	if merchantName == "" {
-		panic("with webhook: webhook header name is required")
+		return nil, fmt.Errorf("merchant name is required")
 	}
 	header := fmt.Sprintf("%s-Signature", strings.ReplaceAll(merchantName, " ", "_"))
 
+	if len(secret) == 0 {
+		return nil, fmt.Errorf("secret is required")
+	}
 	secretKey := append([]byte(nil), secret...)
 
 	sender := &webhookSender{
@@ -135,7 +138,7 @@ func (h *CheckoutHandler) GetWebhookSender(endpoint, merchantName string, secret
 		opt(sender)
 	}
 
-	return sender
+	return sender, nil
 }
 
 type webhookSender struct {

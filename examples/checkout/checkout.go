@@ -30,7 +30,11 @@ func main() {
 
 	handler := acp.NewCheckoutHandler(service, opts...)
 	if webhookOpts != nil {
-		service.enableWebhooks(handler.GetWebhookSender(webhookOpts.Endpoint, webhookOpts.MerchantName, webhookOpts.Secret))
+		ws, err := handler.GetWebhookSender(webhookOpts.Endpoint, webhookOpts.MerchantName, webhookOpts.Secret)
+		if err != nil {
+			panic(err)
+		}
+		service.enableWebhooks(ws)
 		log.Printf("Webhooks enabled; delivering to %s", webhookOpts.Endpoint)
 	} else {
 		log.Printf("Webhooks disabled; set ACP_WEBHOOK_ENDPOINT, ACP_WEBHOOK_HEADER, and ACP_WEBHOOK_SECRET to enable delivery")

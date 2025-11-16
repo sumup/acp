@@ -33,7 +33,10 @@ func TestCheckoutHandlerSendWebhook(t *testing.T) {
 		Status:            OrderStatusCreated,
 	}
 
-	ws := handler.GetWebhookSender(srv.URL, "Merchant Name", []byte("super-secret"), WebhookWithClient(srv.Client()))
+	ws, err := handler.GetWebhookSender(srv.URL, "Merchant Name", []byte("super-secret"), WebhookWithClient(srv.Client()))
+	if err != nil {
+		t.Fatalf("GetWebhookSender() error = %v", err)
+	}
 
 	if err := ws.Send(context.Background(), event); err != nil {
 		t.Fatalf("SendWebhook() error = %v", err)
