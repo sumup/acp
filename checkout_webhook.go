@@ -7,10 +7,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -87,11 +87,66 @@ type webhookEvent struct {
 	Data any              `json:"data"`
 }
 
-// SendWebhook posts webhook events to the OpenAI endpoint configured via [WithWebhookOptions].
-func (h *CheckoutHandler) SendWebhook(ctx context.Context, data EventData) error {
-	if h.cfg.webhook == nil {
-		return errors.New("checkout: webhook options must be configured")
+type WebhookOption func(*webhookSender)
+
+// WebhookWithClient allows overriding the HTTP client used for delivering webhook events.
+func WebhookWithClient(client *http.Client) WebhookOption {
+	return func(ws *webhookSender) {
+		ws.client = client
 	}
+}
+
+// WebhookSender is an interface of a webhook delivery implementation.
+type WebhookSender interface {
+	// Send sends webhook to the configured webhook endpoint.
+	Send(context.Context, EventData) error
+}
+
+// GetWebhookSender returns a configued [WebhookSender] that allows your implementation to deliver webhooks
+// back to the agent.
+//
+// Parameters:
+//
+//   - endpoint is the absolute URL provided by OpenAI for receiving webhook events.
+//   - merchantName controls the signature header name (the header name is Merchant_Name-Signature).
+//   - secret is the HMAC secret provided by OpenAI for signing webhook payloads.
+func (h *CheckoutHandler) GetWebhookSender(endpoint, merchantName string, secret []byte, opts ...WebhookOption) WebhookSender {
+	endpointURL, err := url.Parse(endpoint)
+	if err != nil {
+		panic(fmt.Errorf("with webhook: parse endpoint url: %w", err))
+	}
+
+	merchantName = strings.TrimSpace(merchantName)
+	if merchantName == "" {
+		panic("with webhook: webhook header name is required")
+	}
+	header := fmt.Sprintf("%s-Signature", strings.ReplaceAll(merchantName, " ", "_"))
+
+	secretKey := append([]byte(nil), secret...)
+
+	sender := &webhookSender{
+		endpoint:        endpointURL,
+		signatureHeader: header,
+		secret:          secretKey,
+		client:          http.DefaultClient,
+	}
+
+	for _, opt := range opts {
+		opt(sender)
+	}
+
+	return sender
+}
+
+type webhookSender struct {
+	endpoint        *url.URL
+	signatureHeader string
+	secret          []byte
+	client          *http.Client
+}
+
+// Send sends webhook to the configured webhook endpoint.
+func (s *webhookSender) Send(ctx context.Context, data EventData) error {
 	body, err := json.Marshal(webhookEvent{
 		Type: data.eventType(),
 		Data: data,
@@ -99,22 +154,22 @@ func (h *CheckoutHandler) SendWebhook(ctx context.Context, data EventData) error
 	if err != nil {
 		return fmt.Errorf("checkout: marshal webhook payload: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.cfg.webhook.endpoint.String(), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.endpoint.String(), bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("checkout: build webhook request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("API-Version", APIVersion)
-	req.Header.Set(h.cfg.webhook.signatureHeader, signWebhookPayload(h.cfg.webhook.secret, body))
+	req.Header.Set(s.signatureHeader, signWebhookPayload(s.secret, body))
 
-	resp, err := h.cfg.webhook.client.Do(req)
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("checkout: send webhook: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("checkout: webhook endpoint %s returned %s: %s", h.cfg.webhook.endpoint, resp.Status, strings.TrimSpace(string(snippet)))
+		return fmt.Errorf("checkout: webhook endpoint %s returned %s: %s", s.endpoint, resp.Status, strings.TrimSpace(string(snippet)))
 	}
 	return nil
 }

@@ -24,16 +24,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("invalid webhook configuration: %v", err)
 	}
-	if webhookOpts != nil {
-		opts = append(opts, acp.WithWebhookOptions(*webhookOpts))
-	}
 
 	log.Printf("ACP sample server listening on %s", addr)
 	log.Printf("Try: curl -XPOST %s/checkout_sessions -d @- <<'JSON' ...", "http://localhost:8080")
 
 	handler := acp.NewCheckoutHandler(service, opts...)
 	if webhookOpts != nil {
-		service.enableWebhooks(handler.SendWebhook)
+		service.enableWebhooks(handler.GetWebhookSender(webhookOpts.Endpoint, webhookOpts.MerchantName, webhookOpts.Secret))
 		log.Printf("Webhooks enabled; delivering to %s", webhookOpts.Endpoint)
 	} else {
 		log.Printf("Webhooks disabled; set ACP_WEBHOOK_ENDPOINT, ACP_WEBHOOK_HEADER, and ACP_WEBHOOK_SECRET to enable delivery")
@@ -41,7 +38,13 @@ func main() {
 	log.Fatal(http.ListenAndServe(addr, handler))
 }
 
-func webhookOptionsFromEnv() (*acp.WebhookOptions, error) {
+type webhookOptions struct {
+	Endpoint     string
+	MerchantName string
+	Secret       []byte
+}
+
+func webhookOptionsFromEnv() (*webhookOptions, error) {
 	endpoint := strings.TrimSpace(os.Getenv("ACP_WEBHOOK_ENDPOINT"))
 	header := strings.TrimSpace(os.Getenv("ACP_WEBHOOK_HEADER"))
 	secret := os.Getenv("ACP_WEBHOOK_SECRET")
@@ -52,10 +55,10 @@ func webhookOptionsFromEnv() (*acp.WebhookOptions, error) {
 	if endpoint == "" || header == "" || secret == "" {
 		return nil, fmt.Errorf("ACP_WEBHOOK_* variables must all be set to enable webhook delivery")
 	}
-	return &acp.WebhookOptions{
+	return &webhookOptions{
 		Endpoint:     endpoint,
 		MerchantName: header,
-		SecretKey:    []byte(secret),
+		Secret:       []byte(secret),
 	}, nil
 }
 
@@ -114,8 +117,6 @@ type sessionState struct {
 	order   *acp.Order
 }
 
-type webhookSender func(context.Context, acp.EventData) error
-
 type memoryService struct {
 	mu        sync.RWMutex
 	currency  string
@@ -123,7 +124,7 @@ type memoryService struct {
 	sessions  map[string]*sessionState
 	sessionID uint64
 	orderID   uint64
-	webhook   webhookSender
+	webhook   acp.WebhookSender
 }
 
 func newMemoryService(currency string, catalog []product) *memoryService {
@@ -214,16 +215,13 @@ func (s *memoryService) GetSession(ctx context.Context, id string) (*acp.Checkou
 // CompleteSession marks a session as completed and emits a mock order.
 func (s *memoryService) CompleteSession(ctx context.Context, id string, req acp.CheckoutSessionCompleteRequest) (*acp.SessionWithOrder, error) {
 	s.mu.Lock()
-	var (
-		event   acp.EventData
-		webhook = s.webhook
-	)
+	var event acp.EventData
 	defer func() {
 		s.mu.Unlock()
-		if event == nil || webhook == nil {
+		if s.webhook == nil || event == nil {
 			return
 		}
-		if err := webhook(ctx, event); err != nil {
+		if err := s.webhook.Send(ctx, event); err != nil {
 			log.Printf("webhook delivery failed: %v", err)
 		}
 	}()
@@ -550,7 +548,7 @@ func (s *sessionState) toOrderSession() *acp.SessionWithOrder {
 	return order
 }
 
-func (s *memoryService) enableWebhooks(sender webhookSender) {
+func (s *memoryService) enableWebhooks(sender acp.WebhookSender) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.webhook = sender

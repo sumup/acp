@@ -24,12 +24,7 @@ func TestCheckoutHandlerSendWebhook(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	handler := NewCheckoutHandler(&stubService{}, WithWebhookOptions(WebhookOptions{
-		Endpoint:     srv.URL,
-		MerchantName: "Merchant Name",
-		SecretKey:    []byte("super-secret"),
-		Client:       srv.Client(),
-	}))
+	handler := NewCheckoutHandler(&stubService{})
 
 	event := OrderCreate{
 		Type:              "order",
@@ -37,7 +32,10 @@ func TestCheckoutHandlerSendWebhook(t *testing.T) {
 		PermalinkURL:      "https://merchant.example/orders/cs_123",
 		Status:            OrderStatusCreated,
 	}
-	if err := handler.SendWebhook(context.Background(), event); err != nil {
+
+	ws := handler.GetWebhookSender(srv.URL, "Merchant Name", []byte("super-secret"), WebhookWithClient(srv.Client()))
+
+	if err := ws.Send(context.Background(), event); err != nil {
 		t.Fatalf("SendWebhook() error = %v", err)
 	}
 
