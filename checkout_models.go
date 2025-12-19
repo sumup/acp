@@ -159,10 +159,10 @@ type SessionWithOrder struct {
 type FulfillmentOptionDigital struct {
 	ID       string  `json:"id"`
 	Subtitle *string `json:"subtitle,omitempty"`
-	Subtotal string  `json:"subtotal"`
-	Tax      string  `json:"tax"`
+	Subtotal int     `json:"subtotal"`
+	Tax      int     `json:"tax"`
 	Title    string  `json:"title"`
-	Total    string  `json:"total"`
+	Total    int     `json:"total"`
 	Type     string  `json:"type"`
 }
 
@@ -173,10 +173,10 @@ type FulfillmentOptionShipping struct {
 	EarliestDeliveryTime *time.Time `json:"earliest_delivery_time,omitempty"`
 	LatestDeliveryTime   *time.Time `json:"latest_delivery_time,omitempty"`
 	Subtitle             *string    `json:"subtitle,omitempty"`
-	Subtotal             string     `json:"subtotal"`
-	Tax                  string     `json:"tax"`
+	Subtotal             int        `json:"subtotal"`
+	Tax                  int        `json:"tax"`
 	Title                string     `json:"title"`
-	Total                string     `json:"total"`
+	Total                int        `json:"total"`
 	Type                 string     `json:"type"`
 }
 
@@ -242,6 +242,7 @@ type PaymentProviderProvider string
 // Total defines model for Total.
 type Total struct {
 	Amount      int       `json:"amount"`
+	Description *string   `json:"description,omitempty"`
 	DisplayText string    `json:"display_text"`
 	Type        TotalType `json:"type"`
 }
