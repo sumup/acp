@@ -102,7 +102,7 @@ func (p Product) csvRecord() []string {
 		p.Width,
 		p.Height,
 		p.Weight,
-		p.AgeGroup,
+		string(p.AgeGroup),
 		p.ImageLink,
 		joinStrings(p.AdditionalImageLink),
 		p.VideoLink,

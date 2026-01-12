@@ -8,21 +8,15 @@
 
 </div>
 
-This repo bootstraps Go support for the [Agentic Commerce Protocol](https://developers.openai.com/commerce) (ACP). Both the checkout and delegated payment SDKs now live under a single Go module so you can depend on `github.com/sumup/acp` and call the handlers, models, and helpers you need.
+Go SDK for the [Agentic Commerce Protocol](https://developers.openai.com/commerce) (ACP). `github.com/sumup/acr` supports [Agentic Checkout](https://developers.openai.com/commerce/specs/checkout), [Delegated Payment](https://developers.openai.com/commerce/specs/payment), and [Product Feeds](https://developers.openai.com/commerce/specs/feed).
 
-## Features
+## Examples
 
-- **Checkout API** — plug your own business logic into `NewCheckoutHandler` by implementing `CheckoutSessionService`. The handler exposes the official ACP checkout contract over `net/http`, supports optional signature verification and timestamp skew enforcement, and emits typed responses generated from the OpenAPI spec.
-- **Delegated Payment API** — payment service providers implement `DelegatedPaymentProvider` and wire it up via `NewDelegatedPaymentHandler` (optionally adding `DelegatedPaymentWithAuthenticator` and signature enforcement) to tokenize credentials and emit delegated vault tokens.
+- [`examples/checkout`](examples/checkout) sample checkout provider implementation.
+- [`examples/delegated_payment`](examples/delegated_payment) sample PSP (payments service provider) implementation for Delegated Payment.
+- [`examples/feed`](examples/feed) sample Product Feed that for exporting feeds in JSONL and CSV formats.
 
-## Example Servers
-
-Two runnable samples live under [`examples`](examples):
-
-- [`examples/checkout`](examples/checkout) implements `CheckoutSessionService` with an in-memory catalog and session store.
-- [`examples/delegated_payment`](examples/delegated_payment) implements `DelegatedPaymentProvider` with an in-memory vault token map.
-
-### Checkout sample
+### Checkout Sample
 
 ```bash
 go run ./examples/checkout
@@ -67,7 +61,7 @@ export ACP_WEBHOOK_SECRET="super-secret"
 go run ./examples/checkout
 ```
 
-### Delegated payment sample
+### Delegated Payment Sample
 
 ```bash
 go run ./examples/delegated_payment
@@ -103,6 +97,14 @@ curl -sS -X POST http://localhost:8080/agentic_commerce/delegate_payment \
         "metadata": {"source": "sample"}
       }'
 ```
+
+### Product Feed Sample
+
+```bash
+go run ./examples/feed
+```
+
+This writes compressed feed exports to `examples/feed/output/product_feed.jsonl.gz` and `examples/feed/output/product_feed.csv.gz`.
 
 ## License
 

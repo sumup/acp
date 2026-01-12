@@ -22,6 +22,17 @@ const (
 	ProductConditionUsed        ProductCondition = "used"
 )
 
+// ProductAgeGroup is the target demographic of the product.
+type ProductAgeGroup string
+
+const (
+	ProductAgeGroupNewborn ProductAgeGroup = "newborn"
+	ProductAgeGroupInfant  ProductAgeGroup = "infant"
+	ProductAgeGroupToddler ProductAgeGroup = "toddler"
+	ProductAgeGroupKids    ProductAgeGroup = "kids"
+	ProductAgeGroupAdult   ProductAgeGroup = "adult"
+)
+
 // Product describes a single product entry in an ACP product feed.
 // Field names follow the feed specification for JSONL and CSV export.
 type Product struct {
@@ -86,7 +97,7 @@ type Product struct {
 	// Weight is the product weight with a unit.
 	Weight string `json:"weight,omitempty" csv:"weight"`
 	// AgeGroup is the target demographic such as newborn, infant, toddler, kids, or adult.
-	AgeGroup string `json:"age_group,omitempty" csv:"age_group"`
+	AgeGroup ProductAgeGroup `json:"age_group,omitempty" csv:"age_group"`
 
 	// Media
 	//
