@@ -93,7 +93,7 @@ func (p Product) csvRecord() []string {
 		p.Title,
 		p.Description,
 		p.Link,
-		p.Condition,
+		string(p.Condition),
 		p.ProductCategory,
 		p.Brand,
 		p.Material,
