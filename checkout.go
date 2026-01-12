@@ -12,7 +12,7 @@ type CheckoutProvider interface {
 	UpdateSession(ctx context.Context, id string, req CheckoutSessionUpdateRequest) (*CheckoutSession, error)
 	GetSession(ctx context.Context, id string) (*CheckoutSession, error)
 	CompleteSession(ctx context.Context, id string, req CheckoutSessionCompleteRequest) (*SessionWithOrder, error)
-	CancelSession(ctx context.Context, id string) (*CheckoutSession, error)
+	CancelSession(ctx context.Context, id string, req *CancelSessionRequest) (*CheckoutSession, error)
 }
 
 // CheckoutHandler wires ACP checkout routes to a [CheckoutProvider].
@@ -154,7 +154,21 @@ func (h *CheckoutHandler) handleCancel(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, NewInvalidRequestError("checkout_session_id is required"))
 		return
 	}
-	session, err := h.service.CancelSession(r.Context(), id)
+
+	var req CancelSessionRequest
+	if r.Body != nil {
+		if err := decodeJSON(r.Body, &req); err != nil {
+			writeJSONError(w, NewInvalidRequestError(err.Error()))
+			return
+		}
+
+		if err := req.Validate(); err != nil {
+			writeJSONError(w, NewInvalidRequestError(err.Error()))
+			return
+		}
+	}
+
+	session, err := h.service.CancelSession(r.Context(), id, &req)
 	if err != nil {
 		writeServiceError(w, err)
 		return

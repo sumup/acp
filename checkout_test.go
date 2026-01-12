@@ -111,7 +111,7 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/checkout_sessions/cs_123/cancel",
 			setupStub: func(s *stubService) {
-				s.cancel = func(ctx context.Context, id string) (*CheckoutSession, error) {
+				s.cancel = func(ctx context.Context, id string, req *CancelSessionRequest) (*CheckoutSession, error) {
 					return session, nil
 				}
 			},
@@ -200,12 +200,62 @@ func TestCheckoutHandlerErrors(t *testing.T) {
 	})
 }
 
+func TestCheckoutHandlerCancelWithRequest(t *testing.T) {
+	t.Parallel()
+
+	session := &CheckoutSession{
+		ID:                 "cs_123",
+		Status:             CheckoutSessionStatusInProgress,
+		Currency:           "USD",
+		LineItems:          []LineItem{},
+		FulfillmentOptions: make([]FulfillmentOption, 0),
+		Totals:             []Total{},
+		Messages:           make([]Message, 0),
+		Links:              []Link{},
+	}
+
+	cancelReq := CancelSessionRequest{
+		IntentTrace: &IntentTrace{
+			ReasonCode: IntentTraceReasonCodePriceSensitivity,
+		},
+	}
+
+	stub := &stubService{
+		cancel: func(ctx context.Context, id string, req *CancelSessionRequest) (*CheckoutSession, error) {
+			if id != "cs_123" {
+				t.Fatalf("unexpected id %s", id)
+			}
+			if req == nil || req.IntentTrace == nil || req.IntentTrace.ReasonCode != IntentTraceReasonCodePriceSensitivity {
+				t.Fatalf("missing intent trace in cancel request")
+			}
+			return session, nil
+		},
+	}
+
+	handler := NewCheckoutHandler(stub)
+	payload, err := json.Marshal(cancelReq)
+	if err != nil {
+		t.Fatalf("marshal body: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/checkout_sessions/cs_123/cancel", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d got %d, body=%s", http.StatusOK, rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("API-Version"); got != APIVersion {
+		t.Fatalf("missing API-Version header")
+	}
+}
+
 type stubService struct {
 	create   func(context.Context, CheckoutSessionCreateRequest) (*CheckoutSession, error)
 	update   func(context.Context, string, CheckoutSessionUpdateRequest) (*CheckoutSession, error)
 	get      func(context.Context, string) (*CheckoutSession, error)
 	complete func(context.Context, string, CheckoutSessionCompleteRequest) (*SessionWithOrder, error)
-	cancel   func(context.Context, string) (*CheckoutSession, error)
+	cancel   func(context.Context, string, *CancelSessionRequest) (*CheckoutSession, error)
 }
 
 func (s *stubService) CreateSession(ctx context.Context, req CheckoutSessionCreateRequest) (*CheckoutSession, error) {
@@ -236,9 +286,9 @@ func (s *stubService) CompleteSession(ctx context.Context, id string, req Checko
 	return nil, NewHTTPError(http.StatusNotImplemented, InvalidRequest, ErrorCode("not_implemented"), "complete not implemented")
 }
 
-func (s *stubService) CancelSession(ctx context.Context, id string) (*CheckoutSession, error) {
+func (s *stubService) CancelSession(ctx context.Context, id string, req *CancelSessionRequest) (*CheckoutSession, error) {
 	if s.cancel != nil {
-		return s.cancel(ctx, id)
+		return s.cancel(ctx, id, req)
 	}
 	return nil, NewHTTPError(http.StatusNotImplemented, InvalidRequest, ErrorCode("not_implemented"), "cancel not implemented")
 }

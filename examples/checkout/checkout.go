@@ -264,7 +264,7 @@ func (s *memoryService) CompleteSession(ctx context.Context, id string, req acp.
 }
 
 // CancelSession marks a session as canceled unless it already has an order.
-func (s *memoryService) CancelSession(ctx context.Context, id string) (*acp.CheckoutSession, error) {
+func (s *memoryService) CancelSession(ctx context.Context, id string, req *acp.CancelSessionRequest) (*acp.CheckoutSession, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

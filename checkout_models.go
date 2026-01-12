@@ -24,9 +24,28 @@ type LinkType string
 
 // Defines values for LinkType.
 const (
-	PrivacyPolicy      LinkType = "privacy_policy"
+	PrivacyPolicy LinkType = "privacy_policy"
+	ReturnPolicy  LinkType = "return_policy"
+	// Deprecated: removed in ACP 2025-12-11; attach policies to line items in marketplace scenarios.
 	SellerShopPolicies LinkType = "seller_shop_policies"
 	TermsOfUse         LinkType = "terms_of_use"
+)
+
+// DisclosureType defines model for Disclosure.Type.
+type DisclosureType string
+
+// Defines values for DisclosureType.
+const (
+	DisclosureTypeDisclaimer DisclosureType = "disclaimer"
+)
+
+// DisclosureContentType defines model for Disclosure.ContentType.
+type DisclosureContentType string
+
+// Defines values for DisclosureContentType.
+const (
+	DisclosureContentTypeMarkdown DisclosureContentType = "markdown"
+	DisclosureContentTypePlain    DisclosureContentType = "plain"
 )
 
 // MessageErrorCode defines model for MessageError.Code.
@@ -58,6 +77,23 @@ type MessageInfoContentType string
 const (
 	MessageInfoContentTypeMarkdown MessageInfoContentType = "markdown"
 	MessageInfoContentTypePlain    MessageInfoContentType = "plain"
+)
+
+// IntentTraceReasonCode defines model for IntentTrace.ReasonCode.
+type IntentTraceReasonCode string
+
+// Defines values for IntentTraceReasonCode.
+const (
+	IntentTraceReasonCodePriceSensitivity IntentTraceReasonCode = "price_sensitivity"
+	IntentTraceReasonCodeShippingCost     IntentTraceReasonCode = "shipping_cost"
+	IntentTraceReasonCodeShippingSpeed    IntentTraceReasonCode = "shipping_speed"
+	IntentTraceReasonCodeProductFit       IntentTraceReasonCode = "product_fit"
+	IntentTraceReasonCodeTrustSecurity    IntentTraceReasonCode = "trust_security"
+	IntentTraceReasonCodeReturnsPolicy    IntentTraceReasonCode = "returns_policy"
+	IntentTraceReasonCodePaymentOptions   IntentTraceReasonCode = "payment_options"
+	IntentTraceReasonCodeComparison       IntentTraceReasonCode = "comparison"
+	IntentTraceReasonCodeTimingDeferred   IntentTraceReasonCode = "timing_deferred"
+	IntentTraceReasonCodeOther            IntentTraceReasonCode = "other"
 )
 
 // SupportedPaymentMethods defines model for PaymentProvider.SupportedPaymentMethods.
@@ -188,19 +224,44 @@ type Item struct {
 
 // LineItem defines model for LineItem.
 type LineItem struct {
-	ID         string `json:"id"`
-	BaseAmount int    `json:"base_amount"`
-	Discount   int    `json:"discount"`
-	Item       Item   `json:"item"`
-	Subtotal   int    `json:"subtotal"`
-	Tax        int    `json:"tax"`
-	Total      int    `json:"total"`
+	ID                       string                    `json:"id"`
+	BaseAmount               int                       `json:"base_amount"`
+	Discount                 int                       `json:"discount"`
+	Item                     Item                      `json:"item"`
+	Subtotal                 int                       `json:"subtotal"`
+	Tax                      int                       `json:"tax"`
+	Total                    int                       `json:"total"`
+	Name                     *string                   `json:"name,omitempty"`
+	Description              *string                   `json:"description,omitempty"`
+	Images                   []string                  `json:"images,omitempty"`
+	UnitAmount               *int                      `json:"unit_amount,omitempty"`
+	Disclosures              []Disclosure              `json:"disclosures,omitempty"`
+	CustomAttributes         []CustomAttribute         `json:"custom_attributes,omitempty"`
+	MarketplaceSellerDetails *MarketplaceSellerDetails `json:"marketplace_seller_details,omitempty"`
+}
+
+// CustomAttribute defines model for CustomAttribute.
+type CustomAttribute struct {
+	DisplayName string `json:"display_name"`
+	Value       string `json:"value"`
+}
+
+// Disclosure defines model for Disclosure.
+type Disclosure struct {
+	Type        DisclosureType        `json:"type"`
+	ContentType DisclosureContentType `json:"content_type"`
+	Content     string                `json:"content"`
 }
 
 // Link defines model for Link.
 type Link struct {
 	Type LinkType `json:"type"`
 	Url  string   `json:"url"`
+}
+
+// MarketplaceSellerDetails defines model for MarketplaceSellerDetails.
+type MarketplaceSellerDetails struct {
+	Name string `json:"name"`
 }
 
 // MessageInfo defines model for MessageInfo.
@@ -211,6 +272,15 @@ type MessageInfo struct {
 	// Param RFC 9535 JSONPath
 	Param *string `json:"param,omitempty"`
 	Type  string  `json:"type"`
+}
+
+// MessageError defines model for MessageError.
+type MessageError struct {
+	Code        MessageErrorCode        `json:"code"`
+	Content     string                  `json:"content"`
+	ContentType MessageErrorContentType `json:"content_type"`
+	Param       *string                 `json:"param,omitempty"`
+	Type        string                  `json:"type"`
 }
 
 // Order defines model for Order.
@@ -245,6 +315,18 @@ type Total struct {
 	Description *string   `json:"description,omitempty"`
 	DisplayText string    `json:"display_text"`
 	Type        TotalType `json:"type"`
+}
+
+// IntentTrace defines model for IntentTrace.
+type IntentTrace struct {
+	ReasonCode   IntentTraceReasonCode `json:"reason_code"`
+	TraceSummary *string               `json:"trace_summary,omitempty"`
+	Metadata     map[string]any        `json:"metadata,omitempty"`
+}
+
+// CancelSessionRequest defines model for CancelSessionRequest.
+type CancelSessionRequest struct {
+	IntentTrace *IntentTrace `json:"intent_trace,omitempty"`
 }
 
 // AsFulfillmentOptionShipping returns the union data inside the CheckoutSessionBase_FulfillmentOptions_Item as a FulfillmentOptionShipping
@@ -327,6 +409,32 @@ func (t *Message) FromMessageInfo(v MessageInfo) error {
 
 // MergeMessageInfo performs a merge with any union data inside the CheckoutSessionBase_Messages_Item, using the provided MessageInfo
 func (t *Message) MergeMessageInfo(v MessageInfo) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsMessageError returns the union data inside the CheckoutSessionBase_Messages_Item as a MessageError
+func (t Message) AsMessageError() (MessageError, error) {
+	var body MessageError
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMessageError overwrites any union data inside the CheckoutSessionBase_Messages_Item as the provided MessageError
+func (t *Message) FromMessageError(v MessageError) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeMessageError performs a merge with any union data inside the CheckoutSessionBase_Messages_Item, using the provided MessageError
+func (t *Message) MergeMessageError(v MessageError) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
