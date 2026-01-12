@@ -1,0 +1,16 @@
+{
+	"$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+	"release-type": "go",
+	"include-v-in-tag": true,
+	"include-component-in-tag": false,
+	"versioning": "prerelease",
+	"prerelease": true,
+	"bump-minor-pre-major": true,
+	"bump-patch-for-minor-pre-major": false,
+	"pull-request-header": "feat: release github.com/sumup/acp",
+	"pull-request-title-pattern": "release: ${version}",
+	"extra-label": "release",
+	"packages": {
+		".": {}
+	}
+}
