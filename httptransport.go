@@ -14,9 +14,6 @@ func decodeJSON(body io.ReadCloser, v any) error {
 	dec := json.NewDecoder(body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
-		if errors.Is(err, io.EOF) {
-			return errors.New("request body required")
-		}
 		return err
 	}
 	if dec.More() {
