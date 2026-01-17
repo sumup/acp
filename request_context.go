@@ -37,7 +37,7 @@ type RequestContext struct {
 	Timestamp string
 	// API version
 	//
-	// Example: 2025-09-12
+	// Example: 2026-01-16
 	APIVersion string
 }
 

@@ -19,7 +19,7 @@ func TestRequestContextFromRequest(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Signature", "sig-123")
 	req.Header.Set("Timestamp", "2025-01-02T03:04:05Z")
-	req.Header.Set("API-Version", "2025-01-01")
+	req.Header.Set("API-Version", "2026-01-16")
 
 	got := requestContextFromRequest(req)
 	if got == nil {
@@ -46,7 +46,7 @@ func TestRequestContextFromRequest(t *testing.T) {
 	if got.Timestamp != "2025-01-02T03:04:05Z" {
 		t.Fatalf("unexpected timestamp %q", got.Timestamp)
 	}
-	if got.APIVersion != "2025-01-01" {
+	if got.APIVersion != "2026-01-16" {
 		t.Fatalf("unexpected api version %q", got.APIVersion)
 	}
 }
