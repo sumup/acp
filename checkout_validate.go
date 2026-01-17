@@ -54,7 +54,39 @@ func (r CheckoutSessionCompleteRequest) Validate() error {
 	if r.PaymentData.Provider == "" {
 		return errors.New("payment_data.provider is required")
 	}
+	if r.AuthenticationResult != nil {
+		if r.AuthenticationResult.Outcome == "" {
+			return errors.New("authentication_result.outcome is required")
+		}
+		if requiresAuthenticationOutcomeDetails(r.AuthenticationResult.Outcome) {
+			details := r.AuthenticationResult.OutcomeDetails
+			if details == nil {
+				return errors.New("authentication_result.outcome_details is required when outcome is authenticated, informational, or attempt_acknowledged")
+			}
+			if details.ThreeDsCryptogram == "" {
+				return errors.New("authentication_result.outcome_details.three_ds_cryptogram is required")
+			}
+			if details.ElectronicCommerceIndicator == "" {
+				return errors.New("authentication_result.outcome_details.electronic_commerce_indicator is required")
+			}
+			if details.TransactionId == "" {
+				return errors.New("authentication_result.outcome_details.transaction_id is required")
+			}
+			if details.Version == "" {
+				return errors.New("authentication_result.outcome_details.version is required")
+			}
+		}
+	}
 	return nil
+}
+
+func requiresAuthenticationOutcomeDetails(outcome AuthenticationOutcome) bool {
+	switch outcome {
+	case AuthenticationOutcomeAuthenticated, AuthenticationOutcomeInformational, AuthenticationOutcomeAttemptAcknowledged:
+		return true
+	default:
+		return false
+	}
 }
 
 // Validate ensures CancelSessionRequest conforms to the ACP schema.

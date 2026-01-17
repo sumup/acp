@@ -12,11 +12,12 @@ type CheckoutSessionStatus string
 
 // Defines values for CheckoutSessionBaseStatus.
 const (
-	CheckoutSessionStatusCanceled           CheckoutSessionStatus = "canceled"
-	CheckoutSessionStatusCompleted          CheckoutSessionStatus = "completed"
-	CheckoutSessionStatusInProgress         CheckoutSessionStatus = "in_progress"
-	CheckoutSessionStatusNotReadyForPayment CheckoutSessionStatus = "not_ready_for_payment"
-	CheckoutSessionStatusReadyForPayment    CheckoutSessionStatus = "ready_for_payment"
+	CheckoutSessionStatusCanceled               CheckoutSessionStatus = "canceled"
+	CheckoutSessionStatusCompleted              CheckoutSessionStatus = "completed"
+	CheckoutSessionStatusInProgress             CheckoutSessionStatus = "in_progress"
+	CheckoutSessionStatusNotReadyForPayment     CheckoutSessionStatus = "not_ready_for_payment"
+	CheckoutSessionStatusAuthenticationRequired CheckoutSessionStatus = "authentication_required"
+	CheckoutSessionStatusReadyForPayment        CheckoutSessionStatus = "ready_for_payment"
 )
 
 // LinkType defines model for Link.Type.
@@ -140,18 +141,20 @@ type Buyer struct {
 
 // CheckoutSession defines model for CheckoutSession.
 type CheckoutSession struct {
-	ID                  string                `json:"id"`
-	Buyer               *Buyer                `json:"buyer,omitempty"`
-	Currency            string                `json:"currency"`
-	FulfillmentAddress  *Address              `json:"fulfillment_address,omitempty"`
-	FulfillmentOptionId *string               `json:"fulfillment_option_id,omitempty"`
-	FulfillmentOptions  []FulfillmentOption   `json:"fulfillment_options"`
-	LineItems           []LineItem            `json:"line_items"`
-	Links               []Link                `json:"links"`
-	Messages            []Message             `json:"messages"`
-	PaymentProvider     *PaymentProvider      `json:"payment_provider,omitempty"`
-	Status              CheckoutSessionStatus `json:"status"`
-	Totals              []Total               `json:"totals"`
+	ID                  string              `json:"id"`
+	Buyer               *Buyer              `json:"buyer,omitempty"`
+	Currency            string              `json:"currency"`
+	FulfillmentAddress  *Address            `json:"fulfillment_address,omitempty"`
+	FulfillmentOptionId *string             `json:"fulfillment_option_id,omitempty"`
+	FulfillmentOptions  []FulfillmentOption `json:"fulfillment_options"`
+	LineItems           []LineItem          `json:"line_items"`
+	Links               []Link              `json:"links"`
+	Messages            []Message           `json:"messages"`
+	// AuthenticationMetadata is seller-provided authentication metadata for 3DS flows.
+	AuthenticationMetadata *AuthenticationMetadata `json:"authentication_metadata,omitempty"`
+	PaymentProvider        *PaymentProvider        `json:"payment_provider,omitempty"`
+	Status                 CheckoutSessionStatus   `json:"status"`
+	Totals                 []Total                 `json:"totals"`
 }
 
 // FulfillmentOption defines model for CheckoutSessionBase.fulfillment_options.Item.
@@ -168,6 +171,8 @@ type Message struct {
 type CheckoutSessionCompleteRequest struct {
 	Buyer       *Buyer      `json:"buyer,omitempty"`
 	PaymentData PaymentData `json:"payment_data"`
+	// AuthenticationResult is agent-provided 3DS authentication results for card payments.
+	AuthenticationResult *AuthenticationResult `json:"authentication_result,omitempty"`
 }
 
 // CheckoutSessionCreateRequest defines model for CheckoutSessionCreateRequest.
@@ -299,6 +304,171 @@ type PaymentData struct {
 
 // PaymentDataProvider defines model for PaymentData.Provider.
 type PaymentDataProvider string
+
+// AuthenticationChannelType defines the channel used for authentication.
+type AuthenticationChannelType string
+
+// Defines values for AuthenticationChannelType.
+const (
+	AuthenticationChannelTypeBrowser AuthenticationChannelType = "browser"
+)
+
+// AuthenticationDirectoryServer defines supported 3DS directory servers.
+type AuthenticationDirectoryServer string
+
+// Defines values for AuthenticationDirectoryServer.
+const (
+	AuthenticationDirectoryServerAmericanExpress AuthenticationDirectoryServer = "american_express"
+	AuthenticationDirectoryServerMastercard      AuthenticationDirectoryServer = "mastercard"
+	AuthenticationDirectoryServerVisa            AuthenticationDirectoryServer = "visa"
+)
+
+// AuthenticationFlowPreferenceType defines flow preference type.
+type AuthenticationFlowPreferenceType string
+
+// Defines values for AuthenticationFlowPreferenceType.
+const (
+	AuthenticationFlowPreferenceTypeChallenge    AuthenticationFlowPreferenceType = "challenge"
+	AuthenticationFlowPreferenceTypeFrictionless AuthenticationFlowPreferenceType = "frictionless"
+)
+
+// AuthenticationChallengePreferenceType defines challenge preference type.
+type AuthenticationChallengePreferenceType string
+
+// Defines values for AuthenticationChallengePreferenceType.
+const (
+	AuthenticationChallengePreferenceTypeMandated  AuthenticationChallengePreferenceType = "mandated"
+	AuthenticationChallengePreferenceTypePreferred AuthenticationChallengePreferenceType = "preferred"
+)
+
+// AuthenticationOutcome defines 3DS authentication outcomes.
+type AuthenticationOutcome string
+
+// Defines values for AuthenticationOutcome.
+const (
+	AuthenticationOutcomeAbandoned           AuthenticationOutcome = "abandoned"
+	AuthenticationOutcomeAttemptAcknowledged AuthenticationOutcome = "attempt_acknowledged"
+	AuthenticationOutcomeAuthenticated       AuthenticationOutcome = "authenticated"
+	AuthenticationOutcomeCanceled            AuthenticationOutcome = "canceled"
+	AuthenticationOutcomeDenied              AuthenticationOutcome = "denied"
+	AuthenticationOutcomeInformational       AuthenticationOutcome = "informational"
+	AuthenticationOutcomeInternalError       AuthenticationOutcome = "internal_error"
+	AuthenticationOutcomeNotSupported        AuthenticationOutcome = "not_supported"
+	AuthenticationOutcomeProcessingError     AuthenticationOutcome = "processing_error"
+	AuthenticationOutcomeRejected            AuthenticationOutcome = "rejected"
+)
+
+// AuthenticationECI defines accepted ECI values.
+type AuthenticationECI string
+
+// Defines values for AuthenticationECI.
+const (
+	AuthenticationECI01 AuthenticationECI = "01"
+	AuthenticationECI02 AuthenticationECI = "02"
+	AuthenticationECI05 AuthenticationECI = "05"
+	AuthenticationECI06 AuthenticationECI = "06"
+	AuthenticationECI07 AuthenticationECI = "07"
+)
+
+// AuthenticationMetadata captures seller-provided authentication metadata for 3DS flows.
+type AuthenticationMetadata struct {
+	// Channel captures details about the channel used for this 3DS Authentication.
+	Channel AuthenticationChannel `json:"channel"`
+	// AcquirerDetails are details about the acquirer used for this 3DS Authentication.
+	AcquirerDetails AuthenticationAcquirerDetails `json:"acquirer_details"`
+	// DirectoryServer is the 3DS directory server used for this Authentication.
+	DirectoryServer AuthenticationDirectoryServer `json:"directory_server"`
+	// FlowPreference captures seller's preferred 3DS authentication flow, if any.
+	FlowPreference *AuthenticationFlowPreference `json:"flow_preference,omitempty"`
+}
+
+// AuthenticationChannel describes the channel used for a 3DS Authentication.
+type AuthenticationChannel struct {
+	// Type is the channel type. Use "browser" to indicate a browser-originated transaction.
+	Type AuthenticationChannelType `json:"type"`
+	// Browser contains browser details collected server- or client-side.
+	Browser AuthenticationBrowser `json:"browser"`
+}
+
+// AuthenticationBrowser contains browser details collected server- or client-side for 3DS.
+type AuthenticationBrowser struct {
+	// AcceptHeader is the HTTP Accept header from the cardholder's browser.
+	AcceptHeader string `json:"accept_header"`
+	// IPAddress is the IP address of the browser.
+	IPAddress string `json:"ip_address"`
+	// JavascriptEnabled indicates whether the browser can execute JavaScript.
+	JavascriptEnabled bool `json:"javascript_enabled"`
+	// Language is an IETF BCP 47 language tag representing the browser language.
+	Language string `json:"language"`
+	// UserAgent is the browser user agent string.
+	UserAgent string `json:"user_agent"`
+	// ColorDepth is the screen color depth. Required if JavascriptEnabled is true.
+	ColorDepth *int `json:"color_depth,omitempty"`
+	// JavaEnabled indicates browser Java support. Required if JavascriptEnabled is true.
+	JavaEnabled *bool `json:"java_enabled,omitempty"`
+	// ScreenHeight is the screen height in pixels. Required if JavascriptEnabled is true.
+	ScreenHeight *int `json:"screen_height,omitempty"`
+	// ScreenWidth is the screen width in pixels. Required if JavascriptEnabled is true.
+	ScreenWidth *int `json:"screen_width,omitempty"`
+	// TimezoneOffset is the time difference in minutes between UTC and local time.
+	// Required if JavascriptEnabled is true.
+	TimezoneOffset *int `json:"timezone_offset,omitempty"`
+}
+
+// AuthenticationAcquirerDetails describes the acquirer details used for this 3DS Authentication.
+type AuthenticationAcquirerDetails struct {
+	// AcquirerBin is the acquirer BIN (directory-server specific).
+	AcquirerBin string `json:"acquirer_bin"`
+	// AcquirerCountry is the ISO 3166-1 alpha-2 country code.
+	AcquirerCountry string `json:"acquirer_country"`
+	// AcquirerMerchantId is the merchant ID assigned by the acquirer.
+	AcquirerMerchantId string `json:"acquirer_merchant_id"`
+	// MerchantName is the merchant name assigned by the acquirer.
+	MerchantName string `json:"merchant_name"`
+	// RequestorId is the requestor ID when required by the directory server.
+	RequestorId *string `json:"requestor_id,omitempty"`
+}
+
+// AuthenticationFlowPreference captures seller preferences for the 3DS authentication flow.
+type AuthenticationFlowPreference struct {
+	// Type is the preferred flow type: "challenge" or "frictionless".
+	Type AuthenticationFlowPreferenceType `json:"type"`
+	// Challenge captures details about a requested challenge flow.
+	Challenge *AuthenticationChallengePreference `json:"challenge,omitempty"`
+	// Frictionless captures details about a requested frictionless flow.
+	Frictionless *AuthenticationFrictionlessPreference `json:"frictionless,omitempty"`
+}
+
+// AuthenticationChallengePreference captures details about a requested challenge flow.
+type AuthenticationChallengePreference struct {
+	// Type is the challenge subtype preference.
+	Type AuthenticationChallengePreferenceType `json:"type"`
+}
+
+// AuthenticationFrictionlessPreference captures details about a requested frictionless flow.
+type AuthenticationFrictionlessPreference struct{}
+
+// AuthenticationResult represents agent-provided 3DS authentication results.
+type AuthenticationResult struct {
+	// Outcome is the outcome of this 3DS Authentication.
+	Outcome AuthenticationOutcome `json:"outcome"`
+	// OutcomeDetails contains detailed authentication data.
+	// Required when Outcome is authenticated, informational, or attempt_acknowledged.
+	OutcomeDetails *AuthenticationOutcomeDetails `json:"outcome_details,omitempty"`
+}
+
+// AuthenticationOutcomeDetails provides detailed 3DS authentication data.
+type AuthenticationOutcomeDetails struct {
+	// ThreeDsCryptogram is the 3DS cryptogram (authentication value / AAV/CAVV/AEVV).
+	// This value is 20 bytes, base64-encoded into a 28-character string.
+	ThreeDsCryptogram string `json:"three_ds_cryptogram"`
+	// ElectronicCommerceIndicator is the ECI returned by the 3DS provider.
+	ElectronicCommerceIndicator AuthenticationECI `json:"electronic_commerce_indicator"`
+	// TransactionId is the 3DS transaction identifier (XID for 3DS1, dsTransID for 3DS2).
+	TransactionId string `json:"transaction_id"`
+	// Version is the 3D Secure version used for this authentication (for example "1.0.2" or "2.2.0").
+	Version string `json:"version"`
+}
 
 // PaymentProvider defines model for PaymentProvider.
 type PaymentProvider struct {
