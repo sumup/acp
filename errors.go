@@ -37,6 +37,8 @@ type Error struct {
 	Message string    `json:"message"`
 	Param   *string   `json:"param,omitempty"`
 
+	Internal error `json:"-"`
+
 	status     int           `json:"-"`
 	retryAfter time.Duration `json:"-"`
 }
@@ -77,6 +79,13 @@ func WithStatusCode(status int) errorOption {
 func WithRetryAfter(d time.Duration) errorOption {
 	return func(er *Error) {
 		er.retryAfter = d
+	}
+}
+
+// WithInternal sets an internal error that can be retrieved from [Error] for telemetry purposes.
+func WithInternal(err error) errorOption {
+	return func(er *Error) {
+		er.Internal = err
 	}
 }
 
