@@ -160,8 +160,18 @@ func (s *memoryService) CreateSession(ctx context.Context, req acp.CheckoutSessi
 			{Type: acp.TermsOfUse, Url: "https://merchant.example/terms"},
 		},
 		PaymentProvider: &acp.PaymentProvider{
-			Provider:                "sumup",
-			SupportedPaymentMethods: []acp.SupportedPaymentMethods{acp.Card},
+			Provider: "sumup",
+			SupportedPaymentMethods: []acp.PaymentMethod{
+				{
+					Type: acp.PaymentMethodTypeCard,
+					SupportedCardNetworks: []acp.PaymentCardNetwork{
+						acp.PaymentCardNetworkAmex,
+						acp.PaymentCardNetworkDiscover,
+						acp.PaymentCardNetworkMastercard,
+						acp.PaymentCardNetworkVisa,
+					},
+				},
+			},
 		},
 	}
 
@@ -453,7 +463,14 @@ func clonePaymentProvider(p *acp.PaymentProvider) *acp.PaymentProvider {
 	}
 	copy := *p
 	if p.SupportedPaymentMethods != nil {
-		copy.SupportedPaymentMethods = append([]acp.SupportedPaymentMethods(nil), p.SupportedPaymentMethods...)
+		copy.SupportedPaymentMethods = make([]acp.PaymentMethod, len(p.SupportedPaymentMethods))
+		for i, method := range p.SupportedPaymentMethods {
+			methodCopy := method
+			if method.SupportedCardNetworks != nil {
+				methodCopy.SupportedCardNetworks = append([]acp.PaymentCardNetwork(nil), method.SupportedCardNetworks...)
+			}
+			copy.SupportedPaymentMethods[i] = methodCopy
+		}
 	}
 	return &copy
 }

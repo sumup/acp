@@ -97,12 +97,23 @@ const (
 	IntentTraceReasonCodeOther            IntentTraceReasonCode = "other"
 )
 
-// SupportedPaymentMethods defines model for PaymentProvider.SupportedPaymentMethods.
-type SupportedPaymentMethods string
+// PaymentMethodType defines model for PaymentMethod.Type.
+type PaymentMethodType string
 
-// Defines values for PaymentProviderSupportedPaymentMethods.
+// Defines values for PaymentMethodType.
 const (
-	Card SupportedPaymentMethods = "card"
+	PaymentMethodTypeCard PaymentMethodType = "card"
+)
+
+// PaymentCardNetwork defines model for PaymentMethod.SupportedCardNetworks items.
+type PaymentCardNetwork string
+
+// Defines values for PaymentCardNetwork.
+const (
+	PaymentCardNetworkAmex       PaymentCardNetwork = "amex"
+	PaymentCardNetworkDiscover   PaymentCardNetwork = "discover"
+	PaymentCardNetworkMastercard PaymentCardNetwork = "mastercard"
+	PaymentCardNetworkVisa       PaymentCardNetwork = "visa"
 )
 
 // TotalType defines model for Total.Type.
@@ -470,10 +481,16 @@ type AuthenticationOutcomeDetails struct {
 	Version string `json:"version"`
 }
 
+// PaymentMethod defines model for PaymentProvider.SupportedPaymentMethods items.
+type PaymentMethod struct {
+	SupportedCardNetworks []PaymentCardNetwork `json:"supported_card_networks"`
+	Type                  PaymentMethodType    `json:"type"`
+}
+
 // PaymentProvider defines model for PaymentProvider.
 type PaymentProvider struct {
-	Provider                PaymentProviderProvider   `json:"provider"`
-	SupportedPaymentMethods []SupportedPaymentMethods `json:"supported_payment_methods"`
+	Provider                PaymentProviderProvider `json:"provider"`
+	SupportedPaymentMethods []PaymentMethod         `json:"supported_payment_methods"`
 }
 
 // PaymentProviderProvider defines model for PaymentProvider.Provider.
