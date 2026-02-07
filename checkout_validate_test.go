@@ -7,8 +7,8 @@ func TestCheckoutSessionCompleteRequestValidateAuthenticationResult(t *testing.T
 
 	base := CheckoutSessionCompleteRequest{
 		PaymentData: PaymentData{
-			Token:    "tok",
-			Provider: "stripe",
+			Token:    strPtrForTest("tok"),
+			Provider: providerPtrForTest("stripe"),
 		},
 	}
 
@@ -62,4 +62,13 @@ func TestCheckoutSessionCompleteRequestValidateAuthenticationResult(t *testing.T
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
+}
+
+func providerPtrForTest(v string) *PaymentDataProvider {
+	provider := PaymentDataProvider(v)
+	return &provider
+}
+
+func strPtrForTest(v string) *string {
+	return &v
 }

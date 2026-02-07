@@ -40,7 +40,7 @@ func TestSignatureMiddleware(t *testing.T) {
 			return ts.Add(30 * time.Second)
 		}))
 
-		body := []byte(`{"items":[{"id":"sku_1","quantity":1}]}`)
+		body := []byte(`{"line_items":[{"id":"sku_1"}],"currency":"usd"}`)
 		canonical, err := signature.CanonicalizeJSONBody(body)
 		if err != nil {
 			t.Fatalf("canonicalize: %v", err)
@@ -73,7 +73,7 @@ func TestSignatureMiddleware(t *testing.T) {
 			return ts
 		}))
 
-		body := []byte(`{"items":[{"id":"sku_1","quantity":1}]}`)
+		body := []byte(`{"line_items":[{"id":"sku_1"}],"currency":"usd"}`)
 		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Signature", "bogus")
@@ -100,7 +100,7 @@ func TestSignatureMiddleware(t *testing.T) {
 			return ts.Add(2 * time.Minute)
 		}))
 
-		body := []byte(`{"items":[{"id":"sku_1","quantity":1}]}`)
+		body := []byte(`{"line_items":[{"id":"sku_1"}],"currency":"usd"}`)
 		canonical, err := signature.CanonicalizeJSONBody(body)
 		if err != nil {
 			t.Fatalf("canonicalize: %v", err)

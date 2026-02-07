@@ -148,19 +148,24 @@ func (s *memoryService) CreateSession(ctx context.Context, req acp.CheckoutSessi
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	currency := strings.ToUpper(req.Currency)
+	if currency != s.currency {
+		return nil, acp.NewHTTPError(http.StatusBadRequest, acp.InvalidRequest, acp.ErrorCode("currency_mismatch"), "unsupported currency")
+	}
+
 	session := &acp.CheckoutSession{
 		ID:                 s.nextSessionID(),
-		Currency:           s.currency,
+		Currency:           currency,
 		Buyer:              cloneBuyer(req.Buyer),
-		FulfillmentAddress: cloneAddress(req.FulfillmentAddress),
-		FulfillmentOptions: defaultFulfillmentOptions(),
+		FulfillmentDetails: cloneFulfillmentDetails(req.FulfillmentDetails),
+		FulfillmentOptions: defaultFulfillmentOptions(currency),
 		Messages:           defaultMessages(),
 		Links: []acp.Link{
 			{Type: acp.PrivacyPolicy, Url: "https://merchant.example/privacy"},
 			{Type: acp.TermsOfUse, Url: "https://merchant.example/terms"},
 		},
 		PaymentProvider: &acp.PaymentProvider{
-			Provider: "sumup",
+			Provider: "stripe",
 			SupportedPaymentMethods: []acp.PaymentMethod{
 				{
 					Type: acp.PaymentMethodTypeCard,
@@ -175,7 +180,7 @@ func (s *memoryService) CreateSession(ctx context.Context, req acp.CheckoutSessi
 		},
 	}
 
-	if err := s.rebuildFinancials(session, req.Items); err != nil {
+	if err := s.rebuildFinancials(session, req.LineItems); err != nil {
 		return nil, err
 	}
 	session.Status = deriveStatus(session)
@@ -199,14 +204,11 @@ func (s *memoryService) UpdateSession(ctx context.Context, id string, req acp.Ch
 	if req.Buyer != nil {
 		session.Buyer = cloneBuyer(req.Buyer)
 	}
-	if req.FulfillmentAddress != nil {
-		session.FulfillmentAddress = cloneAddress(req.FulfillmentAddress)
+	if req.FulfillmentDetails != nil {
+		session.FulfillmentDetails = cloneFulfillmentDetails(req.FulfillmentDetails)
 	}
-	if req.FulfillmentOptionId != nil {
-		session.FulfillmentOptionId = req.FulfillmentOptionId
-	}
-	if req.Items != nil {
-		if err := s.rebuildFinancials(session, *req.Items); err != nil {
+	if req.LineItems != nil {
+		if err := s.rebuildFinancials(session, *req.LineItems); err != nil {
 			return nil, err
 		}
 	}
@@ -303,28 +305,66 @@ func (s *memoryService) rebuildFinancials(session *acp.CheckoutSession, items []
 
 func (s *memoryService) buildLineItems(items []acp.Item) ([]acp.LineItem, error) {
 	if len(items) == 0 {
-		return nil, acp.NewHTTPError(http.StatusBadRequest, acp.InvalidRequest, acp.ErrorCode(acp.InvalidRequest), "items cannot be empty")
+		return nil, acp.NewHTTPError(http.StatusBadRequest, acp.InvalidRequest, acp.ErrorCode(acp.InvalidRequest), "line_items cannot be empty")
 	}
 
 	lines := make([]acp.LineItem, 0, len(items))
 	for idx, item := range items {
 		product, ok := s.catalog[item.ID]
 		if !ok {
-			return nil, acp.NewHTTPError(http.StatusBadRequest, acp.InvalidRequest, acp.ErrorCode("unknown_item"), fmt.Sprintf("items[%d]: %q is not sold by this merchant", idx, item.ID))
+			return nil, acp.NewHTTPError(http.StatusBadRequest, acp.InvalidRequest, acp.ErrorCode("unknown_item"), fmt.Sprintf("line_items[%d]: %q is not sold by this merchant", idx, item.ID))
 		}
-		base := product.Price * item.Quantity
+		quantity := 1
+		unitAmount := product.Price
+		if item.UnitAmount != nil {
+			unitAmount = *item.UnitAmount
+		}
+		name := product.Title
+		if item.Name != nil && strings.TrimSpace(*item.Name) != "" {
+			name = *item.Name
+		}
+		base := unitAmount * quantity
 		discount := 0
-		tax := int(math.Round(product.TaxRate * float64(base)))
 		subtotal := base - discount
+		tax := int(math.Round(product.TaxRate * float64(subtotal)))
 		total := subtotal + tax
+		lineTotals := []acp.Total{
+			{Type: acp.TotalTypeItemsBaseAmount, Amount: base, DisplayText: formatMoney(s.currency, base)},
+		}
+		if discount > 0 {
+			lineTotals = append(lineTotals, acp.Total{
+				Type:        acp.TotalTypeItemsDiscount,
+				Amount:      discount,
+				DisplayText: formatMoney(s.currency, discount),
+			})
+		}
+		lineTotals = append(lineTotals, acp.Total{
+			Type:        acp.TotalTypeSubtotal,
+			Amount:      subtotal,
+			DisplayText: formatMoney(s.currency, subtotal),
+		})
+		if tax > 0 {
+			lineTotals = append(lineTotals, acp.Total{
+				Type:        acp.TotalTypeTax,
+				Amount:      tax,
+				DisplayText: formatMoney(s.currency, tax),
+			})
+		}
+		lineTotals = append(lineTotals, acp.Total{
+			Type:        acp.TotalTypeTotal,
+			Amount:      total,
+			DisplayText: formatMoney(s.currency, total),
+		})
+		itemCopy := item
+		itemCopy.Name = &name
+		itemCopy.UnitAmount = &unitAmount
 		lines = append(lines, acp.LineItem{
 			ID:         fmt.Sprintf("li_%s_%d", item.ID, idx),
-			Item:       item,
-			BaseAmount: base,
-			Discount:   discount,
-			Subtotal:   subtotal,
-			Tax:        tax,
-			Total:      total,
+			Item:       itemCopy,
+			Quantity:   quantity,
+			Name:       &name,
+			UnitAmount: &unitAmount,
+			Totals:     lineTotals,
 		})
 	}
 	return lines, nil
@@ -357,18 +397,36 @@ func deriveStatus(session *acp.CheckoutSession) acp.CheckoutSessionStatus {
 
 func buildTotals(lines []acp.LineItem, currency string) []acp.Total {
 	var (
-		itemsBase int
-		tax       int
-		total     int
+		itemsBase     int
+		itemsDiscount int
+		subtotal      int
+		tax           int
+		total         int
 	)
 	for _, line := range lines {
-		itemsBase += line.BaseAmount
-		tax += line.Tax
-		total += line.Total
+		itemsBase += totalAmount(line.Totals, acp.TotalTypeItemsBaseAmount)
+		itemsDiscount += totalAmount(line.Totals, acp.TotalTypeItemsDiscount)
+		subtotal += totalAmount(line.Totals, acp.TotalTypeSubtotal)
+		tax += totalAmount(line.Totals, acp.TotalTypeTax)
+		total += totalAmount(line.Totals, acp.TotalTypeTotal)
 	}
 
 	totals := []acp.Total{
 		{Type: acp.TotalTypeItemsBaseAmount, Amount: itemsBase, DisplayText: formatMoney(currency, itemsBase)},
+	}
+	if itemsDiscount > 0 {
+		totals = append(totals, acp.Total{
+			Type:        acp.TotalTypeItemsDiscount,
+			Amount:      itemsDiscount,
+			DisplayText: formatMoney(currency, itemsDiscount),
+		})
+	}
+	if subtotal > 0 {
+		totals = append(totals, acp.Total{
+			Type:        acp.TotalTypeSubtotal,
+			Amount:      subtotal,
+			DisplayText: formatMoney(currency, subtotal),
+		})
 	}
 	if tax > 0 {
 		totals = append(totals, acp.Total{
@@ -383,6 +441,15 @@ func buildTotals(lines []acp.LineItem, currency string) []acp.Total {
 		DisplayText: formatMoney(currency, total),
 	})
 	return totals
+}
+
+func totalAmount(totals []acp.Total, totalType acp.TotalType) int {
+	for _, total := range totals {
+		if total.Type == totalType {
+			return total.Amount
+		}
+	}
+	return 0
 }
 
 func formatMoney(currency string, cents int) string {
@@ -401,28 +468,29 @@ func defaultMessages() []acp.Message {
 	return []acp.Message{msg}
 }
 
-func defaultFulfillmentOptions() []acp.FulfillmentOption {
+func defaultFulfillmentOptions(currency string) []acp.FulfillmentOption {
 	soon := time.Now().Add(48 * time.Hour)
 	later := soon.Add(24 * time.Hour)
 	shipping := acp.FulfillmentOptionShipping{
-		ID:                   "ship_standard",
-		Title:                "Standard Shipping",
-		Subtitle:             strPtr("2-4 business days"),
-		Subtotal:             500,
-		Tax:                  0,
-		Total:                500,
+		ID:          "ship_standard",
+		Title:       "Standard Shipping",
+		Description: strPtr("2-4 business days"),
+		Totals: []acp.Total{
+			{Type: acp.TotalTypeFulfillment, Amount: 500, DisplayText: formatMoney(currency, 500)},
+			{Type: acp.TotalTypeTotal, Amount: 500, DisplayText: formatMoney(currency, 500)},
+		},
 		Type:                 "shipping",
 		EarliestDeliveryTime: &soon,
 		LatestDeliveryTime:   &later,
 	}
 	digital := acp.FulfillmentOptionDigital{
-		ID:       "pickup",
-		Title:    "In-store pickup",
-		Subtitle: strPtr("Collect in person"),
-		Subtotal: 0,
-		Tax:      0,
-		Total:    0,
-		Type:     "digital",
+		ID:          "pickup",
+		Title:       "In-store pickup",
+		Description: strPtr("Collect in person"),
+		Totals: []acp.Total{
+			{Type: acp.TotalTypeTotal, Amount: 0, DisplayText: formatMoney(currency, 0)},
+		},
+		Type: "digital",
 	}
 
 	opts := make([]acp.FulfillmentOption, 0, 2)
@@ -457,6 +525,15 @@ func cloneAddress(a *acp.Address) *acp.Address {
 	return &copy
 }
 
+func cloneFulfillmentDetails(d *acp.FulfillmentDetails) *acp.FulfillmentDetails {
+	if d == nil {
+		return nil
+	}
+	copy := *d
+	copy.Address = cloneAddress(d.Address)
+	return &copy
+}
+
 func clonePaymentProvider(p *acp.PaymentProvider) *acp.PaymentProvider {
 	if p == nil {
 		return nil
@@ -480,7 +557,31 @@ func cloneLineItems(src []acp.LineItem) []acp.LineItem {
 		return nil
 	}
 	dst := make([]acp.LineItem, len(src))
-	copy(dst, src)
+	for i, line := range src {
+		copyLine := line
+		if line.Images != nil {
+			copyLine.Images = append([]string(nil), line.Images...)
+		}
+		if line.Tags != nil {
+			copyLine.Tags = append([]string(nil), line.Tags...)
+		}
+		if line.VariantOptions != nil {
+			copyLine.VariantOptions = append([]acp.VariantOption(nil), line.VariantOptions...)
+		}
+		if line.DiscountDetails != nil {
+			copyLine.DiscountDetails = append([]acp.DiscountDetail(nil), line.DiscountDetails...)
+		}
+		if line.CustomAttributes != nil {
+			copyLine.CustomAttributes = append([]acp.CustomAttribute(nil), line.CustomAttributes...)
+		}
+		if line.Disclosures != nil {
+			copyLine.Disclosures = append([]acp.Disclosure(nil), line.Disclosures...)
+		}
+		if line.Totals != nil {
+			copyLine.Totals = append([]acp.Total(nil), line.Totals...)
+		}
+		dst[i] = copyLine
+	}
 	return dst
 }
 
@@ -508,13 +609,28 @@ func cloneSession(src *acp.CheckoutSession) *acp.CheckoutSession {
 	}
 	dst := *src
 	dst.Buyer = cloneBuyer(src.Buyer)
-	dst.FulfillmentAddress = cloneAddress(src.FulfillmentAddress)
+	dst.FulfillmentDetails = cloneFulfillmentDetails(src.FulfillmentDetails)
 	dst.PaymentProvider = clonePaymentProvider(src.PaymentProvider)
 	dst.LineItems = cloneLineItems(src.LineItems)
 	dst.Totals = cloneTotals(src.Totals)
 	dst.Links = cloneLinks(src.Links)
 	dst.FulfillmentOptions = append([]acp.FulfillmentOption(nil), src.FulfillmentOptions...)
 	dst.Messages = append([]acp.Message(nil), src.Messages...)
+	if src.SelectedFulfillmentOptions != nil {
+		dst.SelectedFulfillmentOptions = append([]acp.SelectedFulfillmentOptions(nil), src.SelectedFulfillmentOptions...)
+	}
+	if src.FulfillmentGroups != nil {
+		dst.FulfillmentGroups = append([]acp.FulfillmentGroup(nil), src.FulfillmentGroups...)
+	}
+	if src.AvailablePromotions != nil {
+		dst.AvailablePromotions = append([]acp.AvailablePromotion(nil), src.AvailablePromotions...)
+	}
+	if src.Metadata != nil {
+		dst.Metadata = make(map[string]any, len(src.Metadata))
+		for key, value := range src.Metadata {
+			dst.Metadata[key] = value
+		}
+	}
 	return &dst
 }
 
@@ -551,18 +667,19 @@ func convertMessages(src []acp.Message) []acp.Message {
 func (s *sessionState) toOrderSession() *acp.SessionWithOrder {
 	order := &acp.SessionWithOrder{
 		CheckoutSession: acp.CheckoutSession{
-			ID:                  s.session.ID,
-			Buyer:               cloneBuyer(s.session.Buyer),
-			Currency:            s.session.Currency,
-			FulfillmentAddress:  cloneAddress(s.session.FulfillmentAddress),
-			FulfillmentOptionId: s.session.FulfillmentOptionId,
-			FulfillmentOptions:  convertFulfillmentOptions(s.session.FulfillmentOptions),
-			LineItems:           cloneLineItems(s.session.LineItems),
-			Links:               cloneLinks(s.session.Links),
-			Messages:            convertMessages(s.session.Messages),
-			PaymentProvider:     clonePaymentProvider(s.session.PaymentProvider),
-			Status:              acp.CheckoutSessionStatusCompleted,
-			Totals:              cloneTotals(s.session.Totals),
+			ID:                         s.session.ID,
+			Buyer:                      cloneBuyer(s.session.Buyer),
+			Currency:                   s.session.Currency,
+			FulfillmentDetails:         cloneFulfillmentDetails(s.session.FulfillmentDetails),
+			FulfillmentOptions:         convertFulfillmentOptions(s.session.FulfillmentOptions),
+			SelectedFulfillmentOptions: append([]acp.SelectedFulfillmentOptions(nil), s.session.SelectedFulfillmentOptions...),
+			FulfillmentGroups:          append([]acp.FulfillmentGroup(nil), s.session.FulfillmentGroups...),
+			LineItems:                  cloneLineItems(s.session.LineItems),
+			Links:                      cloneLinks(s.session.Links),
+			Messages:                   convertMessages(s.session.Messages),
+			PaymentProvider:            clonePaymentProvider(s.session.PaymentProvider),
+			Status:                     acp.CheckoutSessionStatusCompleted,
+			Totals:                     cloneTotals(s.session.Totals),
 		},
 		Order: *s.order,
 	}

@@ -12,12 +12,17 @@ type CheckoutSessionStatus string
 
 // Defines values for CheckoutSessionBaseStatus.
 const (
+	CheckoutSessionStatusIncomplete             CheckoutSessionStatus = "incomplete"
 	CheckoutSessionStatusCanceled               CheckoutSessionStatus = "canceled"
 	CheckoutSessionStatusCompleted              CheckoutSessionStatus = "completed"
+	CheckoutSessionStatusCompleteInProgress     CheckoutSessionStatus = "complete_in_progress"
 	CheckoutSessionStatusInProgress             CheckoutSessionStatus = "in_progress"
 	CheckoutSessionStatusNotReadyForPayment     CheckoutSessionStatus = "not_ready_for_payment"
+	CheckoutSessionStatusRequiresEscalation     CheckoutSessionStatus = "requires_escalation"
 	CheckoutSessionStatusAuthenticationRequired CheckoutSessionStatus = "authentication_required"
 	CheckoutSessionStatusReadyForPayment        CheckoutSessionStatus = "ready_for_payment"
+	CheckoutSessionStatusPendingApproval        CheckoutSessionStatus = "pending_approval"
+	CheckoutSessionStatusExpired                CheckoutSessionStatus = "expired"
 )
 
 // LinkType defines model for Link.Type.
@@ -29,6 +34,11 @@ const (
 	ReturnPolicy  LinkType = "return_policy"
 	// Deprecated: removed in ACP 2025-12-11; attach policies to line items in marketplace scenarios.
 	SellerShopPolicies LinkType = "seller_shop_policies"
+	ShippingPolicy     LinkType = "shipping_policy"
+	ContactUs          LinkType = "contact_us"
+	AboutUs            LinkType = "about_us"
+	FAQ                LinkType = "faq"
+	Support            LinkType = "support"
 	TermsOfUse         LinkType = "terms_of_use"
 )
 
@@ -54,12 +64,27 @@ type MessageErrorCode string
 
 // Defines values for MessageErrorCode.
 const (
-	Invalid         MessageErrorCode = "invalid"
-	Missing         MessageErrorCode = "missing"
-	OutOfStock      MessageErrorCode = "out_of_stock"
-	PaymentDeclined MessageErrorCode = "payment_declined"
-	Requires3ds     MessageErrorCode = "requires_3ds"
-	RequiresSignIn  MessageErrorCode = "requires_sign_in"
+	Invalid                 MessageErrorCode = "invalid"
+	Missing                 MessageErrorCode = "missing"
+	OutOfStock              MessageErrorCode = "out_of_stock"
+	PaymentDeclined         MessageErrorCode = "payment_declined"
+	Requires3ds             MessageErrorCode = "requires_3ds"
+	RequiresSignIn          MessageErrorCode = "requires_sign_in"
+	LowStock                MessageErrorCode = "low_stock"
+	QuantityExceeded        MessageErrorCode = "quantity_exceeded"
+	CouponInvalid           MessageErrorCode = "coupon_invalid"
+	CouponExpired           MessageErrorCode = "coupon_expired"
+	MinimumNotMet           MessageErrorCode = "minimum_not_met"
+	MaximumExceeded         MessageErrorCode = "maximum_exceeded"
+	RegionRestricted        MessageErrorCode = "region_restricted"
+	AgeVerificationRequired MessageErrorCode = "age_verification_required"
+	ApprovalRequired        MessageErrorCode = "approval_required"
+	Unsupported             MessageErrorCode = "unsupported"
+	NotFound                MessageErrorCode = "not_found"
+	Conflict                MessageErrorCode = "conflict"
+	RateLimited             MessageErrorCode = "rate_limited"
+	Expired                 MessageErrorCode = "expired"
+	InterventionRequired    MessageErrorCode = "intervention_required"
 )
 
 // MessageErrorContentType defines model for MessageError.ContentType.
@@ -69,6 +94,41 @@ type MessageErrorContentType string
 const (
 	MessageErrorContentTypeMarkdown MessageErrorContentType = "markdown"
 	MessageErrorContentTypePlain    MessageErrorContentType = "plain"
+)
+
+// MessageSeverity defines model for MessageInfo/MessageWarning/MessageError.Severity.
+type MessageSeverity string
+
+// Defines values for MessageSeverity.
+const (
+	MessageSeverityInfo     MessageSeverity = "info"
+	MessageSeverityLow      MessageSeverity = "low"
+	MessageSeverityMedium   MessageSeverity = "medium"
+	MessageSeverityHigh     MessageSeverity = "high"
+	MessageSeverityCritical MessageSeverity = "critical"
+)
+
+// MessageResolution defines who is responsible for resolving a message.
+type MessageResolution string
+
+// Defines values for MessageResolution.
+const (
+	MessageResolutionRecoverable         MessageResolution = "recoverable"
+	MessageResolutionRequiresBuyerInput  MessageResolution = "requires_buyer_input"
+	MessageResolutionRequiresBuyerReview MessageResolution = "requires_buyer_review"
+)
+
+// MessageWarningCode defines model for MessageWarning.Code.
+type MessageWarningCode string
+
+// Defines values for MessageWarningCode.
+const (
+	MessageWarningLowStock            MessageWarningCode = "low_stock"
+	MessageWarningHighDemand          MessageWarningCode = "high_demand"
+	MessageWarningShippingDelay       MessageWarningCode = "shipping_delay"
+	MessageWarningPriceChange         MessageWarningCode = "price_change"
+	MessageWarningExpiringPromotion   MessageWarningCode = "expiring_promotion"
+	MessageWarningLimitedAvailability MessageWarningCode = "limited_availability"
 )
 
 // MessageInfoContentType defines model for MessageInfo.ContentType.
@@ -97,6 +157,26 @@ const (
 	IntentTraceReasonCodeOther            IntentTraceReasonCode = "other"
 )
 
+// BuyerAccountType defines model for Buyer.AccountType.
+type BuyerAccountType string
+
+// Defines values for BuyerAccountType.
+const (
+	BuyerAccountTypeGuest      BuyerAccountType = "guest"
+	BuyerAccountTypeRegistered BuyerAccountType = "registered"
+	BuyerAccountTypeBusiness   BuyerAccountType = "business"
+)
+
+// BuyerAuthenticationStatus defines model for Buyer.AuthenticationStatus.
+type BuyerAuthenticationStatus string
+
+// Defines values for BuyerAuthenticationStatus.
+const (
+	BuyerAuthenticationStatusAuthenticated  BuyerAuthenticationStatus = "authenticated"
+	BuyerAuthenticationStatusGuest          BuyerAuthenticationStatus = "guest"
+	BuyerAuthenticationStatusRequiresSignIn BuyerAuthenticationStatus = "requires_signin"
+)
+
 // PaymentMethodType defines model for PaymentMethod.Type.
 type PaymentMethodType string
 
@@ -116,6 +196,103 @@ const (
 	PaymentCardNetworkVisa       PaymentCardNetwork = "visa"
 )
 
+// WeightUnit defines model for WeightInfo.Unit.
+type WeightUnit string
+
+// Defines values for WeightUnit.
+const (
+	WeightUnitGrams     WeightUnit = "g"
+	WeightUnitKilograms WeightUnit = "kg"
+	WeightUnitOunces    WeightUnit = "oz"
+	WeightUnitPounds    WeightUnit = "lb"
+)
+
+// DimensionsUnit defines model for DimensionsInfo.Unit.
+type DimensionsUnit string
+
+// Defines values for DimensionsUnit.
+const (
+	DimensionsUnitCentimeters DimensionsUnit = "cm"
+	DimensionsUnitInches      DimensionsUnit = "in"
+)
+
+// DiscountDetailType defines model for DiscountDetail.Type.
+type DiscountDetailType string
+
+// Defines values for DiscountDetailType.
+const (
+	DiscountDetailTypePercentage DiscountDetailType = "percentage"
+	DiscountDetailTypeFixed      DiscountDetailType = "fixed"
+	DiscountDetailTypeBogo       DiscountDetailType = "bogo"
+	DiscountDetailTypeVolume     DiscountDetailType = "volume"
+)
+
+// DiscountDetailSource defines model for DiscountDetail.Source.
+type DiscountDetailSource string
+
+// Defines values for DiscountDetailSource.
+const (
+	DiscountDetailSourceCoupon    DiscountDetailSource = "coupon"
+	DiscountDetailSourceAutomatic DiscountDetailSource = "automatic"
+	DiscountDetailSourceLoyalty   DiscountDetailSource = "loyalty"
+)
+
+// AvailabilityStatus defines model for LineItem.AvailabilityStatus.
+type AvailabilityStatus string
+
+// Defines values for AvailabilityStatus.
+const (
+	AvailabilityStatusInStock    AvailabilityStatus = "in_stock"
+	AvailabilityStatusLowStock   AvailabilityStatus = "low_stock"
+	AvailabilityStatusOutOfStock AvailabilityStatus = "out_of_stock"
+	AvailabilityStatusBackorder  AvailabilityStatus = "backorder"
+	AvailabilityStatusPreOrder   AvailabilityStatus = "pre_order"
+)
+
+// FulfillmentOptionType defines model for SelectedFulfillmentOptions.Type.
+type FulfillmentOptionType string
+
+// Defines values for FulfillmentOptionType.
+const (
+	FulfillmentOptionTypeShipping      FulfillmentOptionType = "shipping"
+	FulfillmentOptionTypeDigital       FulfillmentOptionType = "digital"
+	FulfillmentOptionTypePickup        FulfillmentOptionType = "pickup"
+	FulfillmentOptionTypeLocalDelivery FulfillmentOptionType = "local_delivery"
+)
+
+// FulfillmentPickupType defines model for FulfillmentOptionPickup.PickupType.
+type FulfillmentPickupType string
+
+// Defines values for FulfillmentPickupType.
+const (
+	FulfillmentPickupTypeInStore  FulfillmentPickupType = "in_store"
+	FulfillmentPickupTypeCurbside FulfillmentPickupType = "curbside"
+	FulfillmentPickupTypeLocker   FulfillmentPickupType = "locker"
+)
+
+// PaymentTerms defines model for PaymentData.PaymentTerms.
+type PaymentTerms string
+
+// Defines values for PaymentTerms.
+const (
+	PaymentTermsImmediate PaymentTerms = "immediate"
+	PaymentTermsNet15     PaymentTerms = "net_15"
+	PaymentTermsNet30     PaymentTerms = "net_30"
+	PaymentTermsNet60     PaymentTerms = "net_60"
+	PaymentTermsNet90     PaymentTerms = "net_90"
+)
+
+// CheckoutOrderStatus defines model for Order.Status.
+type CheckoutOrderStatus string
+
+// Defines values for CheckoutOrderStatus.
+const (
+	CheckoutOrderStatusConfirmed  CheckoutOrderStatus = "confirmed"
+	CheckoutOrderStatusProcessing CheckoutOrderStatus = "processing"
+	CheckoutOrderStatusShipped    CheckoutOrderStatus = "shipped"
+	CheckoutOrderStatusDelivered  CheckoutOrderStatus = "delivered"
+)
+
 // TotalType defines model for Total.Type.
 type TotalType string
 
@@ -124,10 +301,13 @@ const (
 	TotalTypeDiscount        TotalType = "discount"
 	TotalTypeFee             TotalType = "fee"
 	TotalTypeFulfillment     TotalType = "fulfillment"
+	TotalTypeGiftWrap        TotalType = "gift_wrap"
 	TotalTypeItemsBaseAmount TotalType = "items_base_amount"
 	TotalTypeItemsDiscount   TotalType = "items_discount"
+	TotalTypeStoreCredit     TotalType = "store_credit"
 	TotalTypeSubtotal        TotalType = "subtotal"
 	TotalTypeTax             TotalType = "tax"
+	TotalTypeTip             TotalType = "tip"
 	TotalTypeTotal           TotalType = "total"
 )
 
@@ -142,30 +322,91 @@ type Address struct {
 	Country    string  `json:"country"`
 }
 
+// CompanyInfo defines model for Buyer.Company.
+type CompanyInfo struct {
+	Name       string  `json:"name"`
+	TaxID      *string `json:"tax_id,omitempty"`
+	Department *string `json:"department,omitempty"`
+	CostCenter *string `json:"cost_center,omitempty"`
+}
+
+// LoyaltyInfo defines model for Buyer.Loyalty.
+type LoyaltyInfo struct {
+	Tier          *string    `json:"tier,omitempty"`
+	PointsBalance *int       `json:"points_balance,omitempty"`
+	MemberSince   *time.Time `json:"member_since,omitempty"`
+}
+
+// TaxExemption defines model for Buyer.TaxExemption.
+type TaxExemption struct {
+	CertificateID   string     `json:"certificate_id"`
+	CertificateType string     `json:"certificate_type"`
+	ExemptRegions   []string   `json:"exempt_regions,omitempty"`
+	ExpiresAt       *time.Time `json:"expires_at,omitempty"`
+}
+
 // Buyer defines model for Buyer.
 type Buyer struct {
-	Email       string  `json:"email"`
-	FirstName   string  `json:"first_name"`
-	LastName    string  `json:"last_name"`
-	PhoneNumber *string `json:"phone_number,omitempty"`
+	Email                string                     `json:"email"`
+	FirstName            *string                    `json:"first_name,omitempty"`
+	LastName             *string                    `json:"last_name,omitempty"`
+	FullName             *string                    `json:"full_name,omitempty"`
+	PhoneNumber          *string                    `json:"phone_number,omitempty"`
+	CustomerID           *string                    `json:"customer_id,omitempty"`
+	AccountType          *BuyerAccountType          `json:"account_type,omitempty"`
+	AuthenticationStatus *BuyerAuthenticationStatus `json:"authentication_status,omitempty"`
+	Company              *CompanyInfo               `json:"company,omitempty"`
+	Loyalty              *LoyaltyInfo               `json:"loyalty,omitempty"`
+	TaxExemption         *TaxExemption              `json:"tax_exemption,omitempty"`
+}
+
+// FulfillmentDetails defines model for FulfillmentDetails.
+type FulfillmentDetails struct {
+	Name        *string  `json:"name,omitempty"`
+	PhoneNumber *string  `json:"phone_number,omitempty"`
+	Email       *string  `json:"email,omitempty"`
+	Address     *Address `json:"address,omitempty"`
 }
 
 // CheckoutSession defines model for CheckoutSession.
 type CheckoutSession struct {
-	ID                  string              `json:"id"`
-	Buyer               *Buyer              `json:"buyer,omitempty"`
-	Currency            string              `json:"currency"`
-	FulfillmentAddress  *Address            `json:"fulfillment_address,omitempty"`
-	FulfillmentOptionId *string             `json:"fulfillment_option_id,omitempty"`
-	FulfillmentOptions  []FulfillmentOption `json:"fulfillment_options"`
-	LineItems           []LineItem          `json:"line_items"`
-	Links               []Link              `json:"links"`
-	Messages            []Message           `json:"messages"`
+	ID              string           `json:"id"`
+	Protocol        *ProtocolVersion `json:"protocol,omitempty"`
+	Buyer           *Buyer           `json:"buyer,omitempty"`
+	PaymentProvider *PaymentProvider `json:"payment_provider,omitempty"`
+	// Payment contains payment provider response data (if available).
+	Payment  *PaymentResponse      `json:"payment,omitempty"`
+	Status   CheckoutSessionStatus `json:"status"`
+	Currency string                `json:"currency"`
+	// PresentmentCurrency is the currency used for buyer-facing pricing.
+	PresentmentCurrency *string `json:"presentment_currency,omitempty"`
+	// ExchangeRate is the conversion rate from Currency to PresentmentCurrency.
+	ExchangeRate *float64 `json:"exchange_rate,omitempty"`
+	// ExchangeRateTimestamp is the time the exchange rate was captured.
+	ExchangeRateTimestamp *time.Time          `json:"exchange_rate_timestamp,omitempty"`
+	Locale                *string             `json:"locale,omitempty"`
+	Timezone              *string             `json:"timezone,omitempty"`
+	LineItems             []LineItem          `json:"line_items"`
+	FulfillmentDetails    *FulfillmentDetails `json:"fulfillment_details,omitempty"`
+	FulfillmentOptions    []FulfillmentOption `json:"fulfillment_options"`
+	// SelectedFulfillmentOptions lists fulfillment choices by item group.
+	SelectedFulfillmentOptions []SelectedFulfillmentOptions `json:"selected_fulfillment_options,omitempty"`
+	// FulfillmentGroups allow splitting items across multiple destinations.
+	FulfillmentGroups []FulfillmentGroup `json:"fulfillment_groups,omitempty"`
+	Totals            []Total            `json:"totals"`
+	Messages          []Message          `json:"messages"`
+	Links             []Link             `json:"links"`
 	// AuthenticationMetadata is seller-provided authentication metadata for 3DS flows.
 	AuthenticationMetadata *AuthenticationMetadata `json:"authentication_metadata,omitempty"`
-	PaymentProvider        *PaymentProvider        `json:"payment_provider,omitempty"`
-	Status                 CheckoutSessionStatus   `json:"status"`
-	Totals                 []Total                 `json:"totals"`
+	// AvailablePromotions lists promotions applicable to the current cart.
+	AvailablePromotions []AvailablePromotion `json:"available_promotions,omitempty"`
+	CreatedAt           *time.Time           `json:"created_at,omitempty"`
+	UpdatedAt           *time.Time           `json:"updated_at,omitempty"`
+	ExpiresAt           *time.Time           `json:"expires_at,omitempty"`
+	ContinueURL         *string              `json:"continue_url,omitempty"`
+	Metadata            map[string]any       `json:"metadata,omitempty"`
+	QuoteID             *string              `json:"quote_id,omitempty"`
+	QuoteExpiresAt      *time.Time           `json:"quote_expires_at,omitempty"`
 }
 
 // FulfillmentOption defines model for CheckoutSessionBase.fulfillment_options.Item.
@@ -184,21 +425,38 @@ type CheckoutSessionCompleteRequest struct {
 	PaymentData PaymentData `json:"payment_data"`
 	// AuthenticationResult is agent-provided 3DS authentication results for card payments.
 	AuthenticationResult *AuthenticationResult `json:"authentication_result,omitempty"`
+	// AffiliateAttribution contains optional attribution data for crediting third-party publishers.
+	AffiliateAttribution *AffiliateAttribution `json:"affiliate_attribution,omitempty"`
+	// RiskSignals captures client-provided signals for fraud analysis.
+	RiskSignals *RiskSignals `json:"risk_signals,omitempty"`
 }
 
 // CheckoutSessionCreateRequest defines model for CheckoutSessionCreateRequest.
 type CheckoutSessionCreateRequest struct {
-	Buyer              *Buyer   `json:"buyer,omitempty"`
-	FulfillmentAddress *Address `json:"fulfillment_address,omitempty"`
-	Items              []Item   `json:"items"`
+	Buyer *Buyer `json:"buyer,omitempty"`
+	// LineItems is the list of requested items for the checkout session.
+	LineItems []Item `json:"line_items"`
+	// Currency is the ISO 4217 currency code for this checkout.
+	Currency           string              `json:"currency"`
+	FulfillmentDetails *FulfillmentDetails `json:"fulfillment_details,omitempty"`
+	FulfillmentGroups  []FulfillmentGroup  `json:"fulfillment_groups,omitempty"`
+	// AffiliateAttribution contains optional attribution data for crediting third-party publishers.
+	AffiliateAttribution *AffiliateAttribution `json:"affiliate_attribution,omitempty"`
+	Coupons              []string              `json:"coupons,omitempty"`
+	Locale               *string               `json:"locale,omitempty"`
+	Timezone             *string               `json:"timezone,omitempty"`
+	QuoteID              *string               `json:"quote_id,omitempty"`
+	Metadata             map[string]any        `json:"metadata,omitempty"`
 }
 
 // CheckoutSessionUpdateRequest defines model for CheckoutSessionUpdateRequest.
 type CheckoutSessionUpdateRequest struct {
-	Buyer               *Buyer   `json:"buyer,omitempty"`
-	FulfillmentAddress  *Address `json:"fulfillment_address,omitempty"`
-	FulfillmentOptionId *string  `json:"fulfillment_option_id,omitempty"`
-	Items               *[]Item  `json:"items,omitempty"`
+	Buyer                      *Buyer                       `json:"buyer,omitempty"`
+	LineItems                  *[]Item                      `json:"line_items,omitempty"`
+	FulfillmentDetails         *FulfillmentDetails          `json:"fulfillment_details,omitempty"`
+	FulfillmentGroups          []FulfillmentGroup           `json:"fulfillment_groups,omitempty"`
+	SelectedFulfillmentOptions []SelectedFulfillmentOptions `json:"selected_fulfillment_options,omitempty"`
+	Coupons                    []string                     `json:"coupons,omitempty"`
 }
 
 // SessionWithOrder defines model for SessionWithOrder.
@@ -209,44 +467,168 @@ type SessionWithOrder struct {
 
 // FulfillmentOptionDigital defines model for FulfillmentOptionDigital.
 type FulfillmentOptionDigital struct {
-	ID       string  `json:"id"`
-	Subtitle *string `json:"subtitle,omitempty"`
-	Subtotal int     `json:"subtotal"`
-	Tax      int     `json:"tax"`
-	Title    string  `json:"title"`
-	Total    int     `json:"total"`
-	Type     string  `json:"type"`
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Description *string `json:"description,omitempty"`
+	Totals      []Total `json:"totals"`
+	Type        string  `json:"type"`
 }
 
 // FulfillmentOptionShipping defines model for FulfillmentOptionShipping.
 type FulfillmentOptionShipping struct {
 	ID                   string     `json:"id"`
+	Title                string     `json:"title"`
+	Description          *string    `json:"description,omitempty"`
 	Carrier              *string    `json:"carrier,omitempty"`
 	EarliestDeliveryTime *time.Time `json:"earliest_delivery_time,omitempty"`
 	LatestDeliveryTime   *time.Time `json:"latest_delivery_time,omitempty"`
-	Subtitle             *string    `json:"subtitle,omitempty"`
-	Subtotal             int        `json:"subtotal"`
-	Tax                  int        `json:"tax"`
-	Title                string     `json:"title"`
-	Total                int        `json:"total"`
+	Totals               []Total    `json:"totals"`
 	Type                 string     `json:"type"`
+}
+
+// FulfillmentPickupLocation describes pickup location metadata.
+type FulfillmentPickupLocation struct {
+	Name         string  `json:"name"`
+	Address      Address `json:"address"`
+	Phone        *string `json:"phone,omitempty"`
+	Instructions *string `json:"instructions,omitempty"`
+}
+
+// FulfillmentOptionPickup defines model for FulfillmentOptionPickup.
+type FulfillmentOptionPickup struct {
+	Type        string                    `json:"type"`
+	ID          string                    `json:"id"`
+	Title       string                    `json:"title"`
+	Description *string                   `json:"description,omitempty"`
+	Location    FulfillmentPickupLocation `json:"location"`
+	PickupType  *FulfillmentPickupType    `json:"pickup_type,omitempty"`
+	ReadyBy     *time.Time                `json:"ready_by,omitempty"`
+	PickupBy    *time.Time                `json:"pickup_by,omitempty"`
+	Totals      []Total                   `json:"totals"`
+}
+
+// FulfillmentDeliveryWindow defines model for FulfillmentOptionLocalDelivery.DeliveryWindow.
+type FulfillmentDeliveryWindow struct {
+	Start time.Time `json:"start"`
+	End   time.Time `json:"end"`
+}
+
+// FulfillmentServiceArea defines model for FulfillmentOptionLocalDelivery.ServiceArea.
+type FulfillmentServiceArea struct {
+	RadiusMiles      *float64 `json:"radius_miles,omitempty"`
+	CenterPostalCode *string  `json:"center_postal_code,omitempty"`
+}
+
+// FulfillmentOptionLocalDelivery defines model for FulfillmentOptionLocalDelivery.
+type FulfillmentOptionLocalDelivery struct {
+	Type           string                     `json:"type"`
+	ID             string                     `json:"id"`
+	Title          string                     `json:"title"`
+	Description    *string                    `json:"description,omitempty"`
+	DeliveryWindow *FulfillmentDeliveryWindow `json:"delivery_window,omitempty"`
+	ServiceArea    *FulfillmentServiceArea    `json:"service_area,omitempty"`
+	Totals         []Total                    `json:"totals"`
+}
+
+// SelectedFulfillmentOptions defines model for SelectedFulfillmentOptions.
+type SelectedFulfillmentOptions struct {
+	Type     FulfillmentOptionType `json:"type"`
+	OptionID string                `json:"option_id"`
+	ItemIDs  []string              `json:"item_ids"`
+}
+
+// AvailablePromotion defines model for AvailablePromotion.
+type AvailablePromotion struct {
+	Code         string  `json:"code"`
+	Description  string  `json:"description"`
+	Requirements *string `json:"requirements,omitempty"`
+}
+
+// GiftWrap defines model for GiftWrap.
+type GiftWrap struct {
+	Enabled bool    `json:"enabled"`
+	Style   *string `json:"style,omitempty"`
+	Charge  *int    `json:"charge,omitempty"`
+}
+
+// SplitPayment defines model for SplitPayment.
+type SplitPayment struct {
+	Amount int `json:"amount"`
+}
+
+// FulfillmentGroup defines model for FulfillmentGroup.
+type FulfillmentGroup struct {
+	ID                 string                `json:"id"`
+	ItemIDs            []string              `json:"item_ids"`
+	DestinationType    FulfillmentOptionType `json:"destination_type"`
+	FulfillmentDetails *FulfillmentDetails   `json:"fulfillment_details,omitempty"`
+	LocationID         *string               `json:"location_id,omitempty"`
+	Instructions       *string               `json:"instructions,omitempty"`
+}
+
+// EstimatedDelivery defines model for EstimatedDelivery.
+type EstimatedDelivery struct {
+	Earliest time.Time `json:"earliest"`
+	Latest   time.Time `json:"latest"`
+}
+
+// OrderConfirmation defines model for OrderConfirmation.
+type OrderConfirmation struct {
+	ConfirmationNumber    *string `json:"confirmation_number,omitempty"`
+	ConfirmationEmailSent *bool   `json:"confirmation_email_sent,omitempty"`
+	ReceiptURL            *string `json:"receipt_url,omitempty"`
+	InvoiceNumber         *string `json:"invoice_number,omitempty"`
+}
+
+// SupportInfo defines model for SupportInfo.
+type SupportInfo struct {
+	Email         *string `json:"email,omitempty"`
+	Phone         *string `json:"phone,omitempty"`
+	Hours         *string `json:"hours,omitempty"`
+	HelpCenterURL *string `json:"help_center_url,omitempty"`
 }
 
 // Item defines model for Item.
 type Item struct {
-	ID       string `json:"id"`
-	Quantity int    `json:"quantity"`
+	ID         string  `json:"id"`
+	Name       *string `json:"name,omitempty"`
+	UnitAmount *int    `json:"unit_amount,omitempty"`
+}
+
+// VariantOption defines model for VariantOption.
+type VariantOption struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+// WeightInfo defines model for WeightInfo.
+type WeightInfo struct {
+	Value float64    `json:"value"`
+	Unit  WeightUnit `json:"unit"`
+}
+
+// DimensionsInfo defines model for DimensionsInfo.
+type DimensionsInfo struct {
+	Length float64        `json:"length"`
+	Width  float64        `json:"width"`
+	Height float64        `json:"height"`
+	Unit   DimensionsUnit `json:"unit"`
+}
+
+// DiscountDetail defines model for DiscountDetail.
+type DiscountDetail struct {
+	Code        *string               `json:"code,omitempty"`
+	Type        DiscountDetailType    `json:"type"`
+	Amount      int                   `json:"amount"`
+	Description *string               `json:"description,omitempty"`
+	Source      *DiscountDetailSource `json:"source,omitempty"`
 }
 
 // LineItem defines model for LineItem.
 type LineItem struct {
 	ID                       string                    `json:"id"`
-	BaseAmount               int                       `json:"base_amount"`
-	Discount                 int                       `json:"discount"`
 	Item                     Item                      `json:"item"`
-	Subtotal                 int                       `json:"subtotal"`
-	Tax                      int                       `json:"tax"`
-	Total                    int                       `json:"total"`
+	Quantity                 int                       `json:"quantity"`
 	Name                     *string                   `json:"name,omitempty"`
 	Description              *string                   `json:"description,omitempty"`
 	Images                   []string                  `json:"images,omitempty"`
@@ -254,6 +636,24 @@ type LineItem struct {
 	Disclosures              []Disclosure              `json:"disclosures,omitempty"`
 	CustomAttributes         []CustomAttribute         `json:"custom_attributes,omitempty"`
 	MarketplaceSellerDetails *MarketplaceSellerDetails `json:"marketplace_seller_details,omitempty"`
+	ProductID                *string                   `json:"product_id,omitempty"`
+	SKU                      *string                   `json:"sku,omitempty"`
+	VariantID                *string                   `json:"variant_id,omitempty"`
+	Category                 *string                   `json:"category,omitempty"`
+	Tags                     []string                  `json:"tags,omitempty"`
+	Weight                   *WeightInfo               `json:"weight,omitempty"`
+	Dimensions               *DimensionsInfo           `json:"dimensions,omitempty"`
+	AvailabilityStatus       *AvailabilityStatus       `json:"availability_status,omitempty"`
+	AvailableQuantity        *int                      `json:"available_quantity,omitempty"`
+	MaxQuantityPerOrder      *int                      `json:"max_quantity_per_order,omitempty"`
+	FulfillableOn            *time.Time                `json:"fulfillable_on,omitempty"`
+	VariantOptions           []VariantOption           `json:"variant_options,omitempty"`
+	DiscountDetails          []DiscountDetail          `json:"discount_details,omitempty"`
+	TaxExempt                *bool                     `json:"tax_exempt,omitempty"`
+	TaxExemptionReason       *string                   `json:"tax_exemption_reason,omitempty"`
+	ParentID                 *string                   `json:"parent_id,omitempty"`
+	// Totals contains the line-item totals breakdown including base_amount, discount, subtotal, tax, and total.
+	Totals []Total `json:"totals"`
 }
 
 // CustomAttribute defines model for CustomAttribute.
@@ -271,8 +671,9 @@ type Disclosure struct {
 
 // Link defines model for Link.
 type Link struct {
-	Type LinkType `json:"type"`
-	Url  string   `json:"url"`
+	Type  LinkType `json:"type"`
+	Title *string  `json:"title,omitempty"`
+	Url   string   `json:"url"`
 }
 
 // MarketplaceSellerDetails defines model for MarketplaceSellerDetails.
@@ -284,7 +685,21 @@ type MarketplaceSellerDetails struct {
 type MessageInfo struct {
 	Content     string                 `json:"content"`
 	ContentType MessageInfoContentType `json:"content_type"`
+	Severity    *MessageSeverity       `json:"severity,omitempty"`
+	Resolution  *MessageResolution     `json:"resolution,omitempty"`
 
+	// Param RFC 9535 JSONPath
+	Param *string `json:"param,omitempty"`
+	Type  string  `json:"type"`
+}
+
+// MessageWarning defines model for MessageWarning.
+type MessageWarning struct {
+	Code        MessageWarningCode     `json:"code"`
+	Content     string                 `json:"content"`
+	ContentType MessageInfoContentType `json:"content_type"`
+	Severity    *MessageSeverity       `json:"severity,omitempty"`
+	Resolution  *MessageResolution     `json:"resolution,omitempty"`
 	// Param RFC 9535 JSONPath
 	Param *string `json:"param,omitempty"`
 	Type  string  `json:"type"`
@@ -295,34 +710,93 @@ type MessageError struct {
 	Code        MessageErrorCode        `json:"code"`
 	Content     string                  `json:"content"`
 	ContentType MessageErrorContentType `json:"content_type"`
+	Severity    *MessageSeverity        `json:"severity,omitempty"`
+	Resolution  *MessageResolution      `json:"resolution,omitempty"`
 	Param       *string                 `json:"param,omitempty"`
 	Type        string                  `json:"type"`
 }
 
 // Order defines model for Order.
 type Order struct {
-	ID                string `json:"id"`
-	CheckoutSessionId string `json:"checkout_session_id"`
-	PermalinkUrl      string `json:"permalink_url"`
+	ID                string               `json:"id"`
+	CheckoutSessionId string               `json:"checkout_session_id"`
+	OrderNumber       *string              `json:"order_number,omitempty"`
+	PermalinkUrl      string               `json:"permalink_url"`
+	Status            *CheckoutOrderStatus `json:"status,omitempty"`
+	EstimatedDelivery *EstimatedDelivery   `json:"estimated_delivery,omitempty"`
+	Confirmation      *OrderConfirmation   `json:"confirmation,omitempty"`
+	Support           *SupportInfo         `json:"support,omitempty"`
 }
 
 // PaymentData defines model for PaymentData.
 type PaymentData struct {
-	BillingAddress *Address            `json:"billing_address,omitempty"`
-	Provider       PaymentDataProvider `json:"provider"`
-	Token          string              `json:"token"`
+	// Token is a provider-issued payment token (required with Provider).
+	Token *string `json:"token,omitempty"`
+	// Provider identifies the payment provider that issued Token.
+	Provider       *PaymentDataProvider `json:"provider,omitempty"`
+	BillingAddress *Address             `json:"billing_address,omitempty"`
+	// PurchaseOrderNumber enables non-tokenized payment flows (B2B).
+	PurchaseOrderNumber *string `json:"purchase_order_number,omitempty"`
+	// PaymentTerms specify invoice payment terms (for example "net_30").
+	PaymentTerms *PaymentTerms `json:"payment_terms,omitempty"`
+	// DueDate is the payment due date for invoice flows.
+	DueDate *time.Time `json:"due_date,omitempty"`
+	// ApprovalRequired signals whether buyer approval is required before payment capture.
+	ApprovalRequired *bool `json:"approval_required,omitempty"`
 }
 
 // PaymentDataProvider defines model for PaymentData.Provider.
 type PaymentDataProvider string
 
-// AuthenticationChannelType defines the channel used for authentication.
-type AuthenticationChannelType string
+// ProtocolVersion defines model for ProtocolVersion.
+type ProtocolVersion struct {
+	Version      string   `json:"version"`
+	Capabilities []string `json:"capabilities,omitempty"`
+}
 
-// Defines values for AuthenticationChannelType.
-const (
-	AuthenticationChannelTypeBrowser AuthenticationChannelType = "browser"
-)
+// PaymentResponse defines model for PaymentResponse.
+type PaymentResponse struct {
+	Provider    *string          `json:"provider,omitempty"`
+	Instruments []map[string]any `json:"instruments,omitempty"`
+	Handlers    []map[string]any `json:"handlers,omitempty"`
+}
+
+// RiskSignals defines model for RiskSignals.
+type RiskSignals struct {
+	IPAddress         *string `json:"ip_address,omitempty"`
+	UserAgent         *string `json:"user_agent,omitempty"`
+	AcceptLanguage    *string `json:"accept_language,omitempty"`
+	SessionID         *string `json:"session_id,omitempty"`
+	DeviceFingerprint *string `json:"device_fingerprint,omitempty"`
+}
+
+// AffiliateAttributionSource defines model for AffiliateAttribution.Source.
+type AffiliateAttributionSource struct {
+	Type string  `json:"type"`
+	URL  *string `json:"url,omitempty"`
+}
+
+// AffiliateAttributionMetadata defines model for AffiliateAttribution.Metadata.
+type AffiliateAttributionMetadata map[string]any
+
+// AffiliateAttribution defines model for AffiliateAttribution.
+type AffiliateAttribution struct {
+	// Provider is the attribution provider / affiliate network namespace (for example "impact.com").
+	Provider string `json:"provider"`
+	// Token is an opaque provider-issued token for fraud-resistant validation.
+	Token *string `json:"token,omitempty"`
+	// PublisherID is the provider-scoped affiliate/publisher identifier.
+	PublisherID *string                      `json:"publisher_id,omitempty"`
+	CampaignID  *string                      `json:"campaign_id,omitempty"`
+	CreativeID  *string                      `json:"creative_id,omitempty"`
+	SubID       *string                      `json:"sub_id,omitempty"`
+	Source      *AffiliateAttributionSource  `json:"source,omitempty"`
+	IssuedAt    *time.Time                   `json:"issued_at,omitempty"`
+	ExpiresAt   *time.Time                   `json:"expires_at,omitempty"`
+	Metadata    AffiliateAttributionMetadata `json:"metadata,omitempty"`
+	// Touchpoint is the attribution touchpoint type ("first" or "last").
+	Touchpoint *string `json:"touchpoint,omitempty"`
+}
 
 // AuthenticationDirectoryServer defines supported 3DS directory servers.
 type AuthenticationDirectoryServer string
@@ -383,47 +857,12 @@ const (
 
 // AuthenticationMetadata captures seller-provided authentication metadata for 3DS flows.
 type AuthenticationMetadata struct {
-	// Channel captures details about the channel used for this 3DS Authentication.
-	Channel AuthenticationChannel `json:"channel"`
 	// AcquirerDetails are details about the acquirer used for this 3DS Authentication.
 	AcquirerDetails AuthenticationAcquirerDetails `json:"acquirer_details"`
 	// DirectoryServer is the 3DS directory server used for this Authentication.
 	DirectoryServer AuthenticationDirectoryServer `json:"directory_server"`
 	// FlowPreference captures seller's preferred 3DS authentication flow, if any.
 	FlowPreference *AuthenticationFlowPreference `json:"flow_preference,omitempty"`
-}
-
-// AuthenticationChannel describes the channel used for a 3DS Authentication.
-type AuthenticationChannel struct {
-	// Type is the channel type. Use "browser" to indicate a browser-originated transaction.
-	Type AuthenticationChannelType `json:"type"`
-	// Browser contains browser details collected server- or client-side.
-	Browser AuthenticationBrowser `json:"browser"`
-}
-
-// AuthenticationBrowser contains browser details collected server- or client-side for 3DS.
-type AuthenticationBrowser struct {
-	// AcceptHeader is the HTTP Accept header from the cardholder's browser.
-	AcceptHeader string `json:"accept_header"`
-	// IPAddress is the IP address of the browser.
-	IPAddress string `json:"ip_address"`
-	// JavascriptEnabled indicates whether the browser can execute JavaScript.
-	JavascriptEnabled bool `json:"javascript_enabled"`
-	// Language is an IETF BCP 47 language tag representing the browser language.
-	Language string `json:"language"`
-	// UserAgent is the browser user agent string.
-	UserAgent string `json:"user_agent"`
-	// ColorDepth is the screen color depth. Required if JavascriptEnabled is true.
-	ColorDepth *int `json:"color_depth,omitempty"`
-	// JavaEnabled indicates browser Java support. Required if JavascriptEnabled is true.
-	JavaEnabled *bool `json:"java_enabled,omitempty"`
-	// ScreenHeight is the screen height in pixels. Required if JavascriptEnabled is true.
-	ScreenHeight *int `json:"screen_height,omitempty"`
-	// ScreenWidth is the screen width in pixels. Required if JavascriptEnabled is true.
-	ScreenWidth *int `json:"screen_width,omitempty"`
-	// TimezoneOffset is the time difference in minutes between UTC and local time.
-	// Required if JavascriptEnabled is true.
-	TimezoneOffset *int `json:"timezone_offset,omitempty"`
 }
 
 // AuthenticationAcquirerDetails describes the acquirer details used for this 3DS Authentication.
@@ -483,7 +922,7 @@ type AuthenticationOutcomeDetails struct {
 
 // PaymentMethod defines model for PaymentProvider.SupportedPaymentMethods items.
 type PaymentMethod struct {
-	SupportedCardNetworks []PaymentCardNetwork `json:"supported_card_networks"`
+	SupportedCardNetworks []PaymentCardNetwork `json:"supported_card_networks,omitempty"`
 	Type                  PaymentMethodType    `json:"type"`
 }
 
@@ -496,12 +935,21 @@ type PaymentProvider struct {
 // PaymentProviderProvider defines model for PaymentProvider.Provider.
 type PaymentProviderProvider string
 
+// TaxBreakdownItem defines model for TaxBreakdownItem.
+type TaxBreakdownItem struct {
+	Jurisdiction string  `json:"jurisdiction"`
+	Rate         float64 `json:"rate"`
+	Amount       int     `json:"amount"`
+}
+
 // Total defines model for Total.
 type Total struct {
-	Amount      int       `json:"amount"`
-	Description *string   `json:"description,omitempty"`
-	DisplayText string    `json:"display_text"`
-	Type        TotalType `json:"type"`
+	Amount            int                `json:"amount"`
+	PresentmentAmount *int               `json:"presentment_amount,omitempty"`
+	Description       *string            `json:"description,omitempty"`
+	DisplayText       string             `json:"display_text"`
+	Type              TotalType          `json:"type"`
+	Breakdown         []TaxBreakdownItem `json:"breakdown,omitempty"`
 }
 
 // IntentTrace defines model for IntentTrace.
@@ -568,6 +1016,58 @@ func (t *FulfillmentOption) MergeFulfillmentOptionDigital(v FulfillmentOptionDig
 	return err
 }
 
+// AsFulfillmentOptionPickup returns the union data inside the CheckoutSessionBase_FulfillmentOptions_Item as a FulfillmentOptionPickup
+func (t FulfillmentOption) AsFulfillmentOptionPickup() (FulfillmentOptionPickup, error) {
+	var body FulfillmentOptionPickup
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromFulfillmentOptionPickup overwrites any union data inside the CheckoutSessionBase_FulfillmentOptions_Item as the provided FulfillmentOptionPickup
+func (t *FulfillmentOption) FromFulfillmentOptionPickup(v FulfillmentOptionPickup) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeFulfillmentOptionPickup performs a merge with any union data inside the CheckoutSessionBase_FulfillmentOptions_Item, using the provided FulfillmentOptionPickup
+func (t *FulfillmentOption) MergeFulfillmentOptionPickup(v FulfillmentOptionPickup) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsFulfillmentOptionLocalDelivery returns the union data inside the CheckoutSessionBase_FulfillmentOptions_Item as a FulfillmentOptionLocalDelivery
+func (t FulfillmentOption) AsFulfillmentOptionLocalDelivery() (FulfillmentOptionLocalDelivery, error) {
+	var body FulfillmentOptionLocalDelivery
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromFulfillmentOptionLocalDelivery overwrites any union data inside the CheckoutSessionBase_FulfillmentOptions_Item as the provided FulfillmentOptionLocalDelivery
+func (t *FulfillmentOption) FromFulfillmentOptionLocalDelivery(v FulfillmentOptionLocalDelivery) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeFulfillmentOptionLocalDelivery performs a merge with any union data inside the CheckoutSessionBase_FulfillmentOptions_Item, using the provided FulfillmentOptionLocalDelivery
+func (t *FulfillmentOption) MergeFulfillmentOptionLocalDelivery(v FulfillmentOptionLocalDelivery) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 // MarshalJSON serializes the underlying union for CheckoutSessionBase_FulfillmentOptions_Item.
 func (t FulfillmentOption) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
@@ -596,6 +1096,32 @@ func (t *Message) FromMessageInfo(v MessageInfo) error {
 
 // MergeMessageInfo performs a merge with any union data inside the CheckoutSessionBase_Messages_Item, using the provided MessageInfo
 func (t *Message) MergeMessageInfo(v MessageInfo) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsMessageWarning returns the union data inside the CheckoutSessionBase_Messages_Item as a MessageWarning
+func (t Message) AsMessageWarning() (MessageWarning, error) {
+	var body MessageWarning
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMessageWarning overwrites any union data inside the CheckoutSessionBase_Messages_Item as the provided MessageWarning
+func (t *Message) FromMessageWarning(v MessageWarning) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeMessageWarning performs a merge with any union data inside the CheckoutSessionBase_Messages_Item, using the provided MessageWarning
+func (t *Message) MergeMessageWarning(v MessageWarning) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err

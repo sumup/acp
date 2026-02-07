@@ -53,12 +53,13 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/checkout_sessions",
 			body: CheckoutSessionCreateRequest{
-				Items: []Item{{ID: "sku_1", Quantity: 1}},
+				LineItems: []Item{{ID: "sku_1"}},
+				Currency:  "USD",
 			},
 			setupStub: func(s *stubService) {
 				s.create = func(ctx context.Context, req CheckoutSessionCreateRequest) (*CheckoutSession, error) {
-					if len(req.Items) != 1 {
-						t.Fatalf("expected 1 item")
+					if len(req.LineItems) != 1 {
+						t.Fatalf("expected 1 line item")
 					}
 					return session, nil
 				}
@@ -82,7 +83,7 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/checkout_sessions/cs_123",
 			body: CheckoutSessionUpdateRequest{
-				Items: &[]Item{{ID: "sku_1", Quantity: 2}},
+				LineItems: &[]Item{{ID: "sku_1"}},
 			},
 			setupStub: func(s *stubService) {
 				s.update = func(ctx context.Context, id string, req CheckoutSessionUpdateRequest) (*CheckoutSession, error) {
@@ -98,7 +99,7 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/checkout_sessions/cs_123/complete",
 			body: CheckoutSessionCompleteRequest{
-				PaymentData: PaymentData{Token: "tok", Provider: "sumup"},
+				PaymentData: PaymentData{Token: strPtr("tok"), Provider: providerPtr("sumup")},
 			},
 			setupStub: func(s *stubService) {
 				s.complete = func(ctx context.Context, id string, req CheckoutSessionCompleteRequest) (*SessionWithOrder, error) {
@@ -153,6 +154,15 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 			}
 		})
 	}
+}
+
+func providerPtr(value string) *PaymentDataProvider {
+	provider := PaymentDataProvider(value)
+	return &provider
+}
+
+func strPtr(value string) *string {
+	return &value
 }
 
 func TestCheckoutHandlerErrors(t *testing.T) {

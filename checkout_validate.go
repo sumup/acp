@@ -7,40 +7,40 @@ import (
 
 // Validate ensures CheckoutSessionCreateRequest satisfies required schema constraints.
 func (r CheckoutSessionCreateRequest) Validate() error {
-	if len(r.Items) == 0 {
-		return errors.New("items must contain at least one entry")
+	if len(r.LineItems) == 0 {
+		return errors.New("line_items must contain at least one entry")
 	}
-	for i, item := range r.Items {
+	for i, item := range r.LineItems {
 		if item.ID == "" {
-			return fmt.Errorf("items[%d]: id is required", i)
+			return fmt.Errorf("line_items[%d]: id is required", i)
 		}
-		if item.Quantity <= 0 {
-			return fmt.Errorf("items[%d]: quantity must be positive", i)
-		}
+	}
+	if r.Currency == "" {
+		return errors.New("currency is required")
 	}
 	if r.Buyer != nil {
-		if r.Buyer.FirstName == "" || r.Buyer.LastName == "" || string(r.Buyer.Email) == "" {
-			return errors.New("buyer requires first_name, last_name, and email")
+		if r.Buyer.Email == "" {
+			return errors.New("buyer.email is required")
 		}
+	}
+	if err := validateAffiliateAttribution(r.AffiliateAttribution); err != nil {
+		return err
 	}
 	return nil
 }
 
 // Validate ensures CheckoutSessionUpdateRequest maintains schema constraints.
 func (r CheckoutSessionUpdateRequest) Validate() error {
-	if r.Items != nil {
-		for i, item := range *r.Items {
+	if r.LineItems != nil {
+		for i, item := range *r.LineItems {
 			if item.ID == "" {
-				return fmt.Errorf("items[%d]: id is required", i)
-			}
-			if item.Quantity <= 0 {
-				return fmt.Errorf("items[%d]: quantity must be positive", i)
+				return fmt.Errorf("line_items[%d]: id is required", i)
 			}
 		}
 	}
 	if r.Buyer != nil {
-		if r.Buyer.FirstName == "" || r.Buyer.LastName == "" || string(r.Buyer.Email) == "" {
-			return errors.New("buyer requires first_name, last_name, and email")
+		if r.Buyer.Email == "" {
+			return errors.New("buyer.email is required")
 		}
 	}
 	return nil
@@ -48,11 +48,17 @@ func (r CheckoutSessionUpdateRequest) Validate() error {
 
 // Validate ensures CheckoutSessionCompleteRequest satisfies payment requirements.
 func (r CheckoutSessionCompleteRequest) Validate() error {
-	if r.PaymentData.Token == "" {
-		return errors.New("payment_data.token is required")
+	hasTokenProvider := r.PaymentData.Token != nil && *r.PaymentData.Token != "" &&
+		r.PaymentData.Provider != nil && *r.PaymentData.Provider != ""
+	hasPurchaseOrder := r.PaymentData.PurchaseOrderNumber != nil && *r.PaymentData.PurchaseOrderNumber != ""
+	if !hasTokenProvider && !hasPurchaseOrder {
+		return errors.New("payment_data requires token+provider or purchase_order_number")
 	}
-	if r.PaymentData.Provider == "" {
-		return errors.New("payment_data.provider is required")
+	if r.PaymentData.Token != nil && *r.PaymentData.Token != "" && (r.PaymentData.Provider == nil || *r.PaymentData.Provider == "") {
+		return errors.New("payment_data.provider is required when payment_data.token is set")
+	}
+	if r.PaymentData.Provider != nil && *r.PaymentData.Provider != "" && (r.PaymentData.Token == nil || *r.PaymentData.Token == "") {
+		return errors.New("payment_data.token is required when payment_data.provider is set")
 	}
 	if r.AuthenticationResult != nil {
 		if r.AuthenticationResult.Outcome == "" {
@@ -76,6 +82,9 @@ func (r CheckoutSessionCompleteRequest) Validate() error {
 				return errors.New("authentication_result.outcome_details.version is required")
 			}
 		}
+	}
+	if err := validateAffiliateAttribution(r.AffiliateAttribution); err != nil {
+		return err
 	}
 	return nil
 }
@@ -109,6 +118,21 @@ func (r CancelSessionRequest) Validate() error {
 				return fmt.Errorf("intent_trace.metadata[%s] must be string, number, or boolean", key)
 			}
 		}
+	}
+	return nil
+}
+
+func validateAffiliateAttribution(attribution *AffiliateAttribution) error {
+	if attribution == nil {
+		return nil
+	}
+	if attribution.Provider == "" {
+		return errors.New("affiliate_attribution.provider is required")
+	}
+	hasToken := attribution.Token != nil && *attribution.Token != ""
+	hasPublisherID := attribution.PublisherID != nil && *attribution.PublisherID != ""
+	if !hasToken && !hasPublisherID {
+		return errors.New("affiliate_attribution requires token or publisher_id")
 	}
 	return nil
 }

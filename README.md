@@ -29,10 +29,11 @@ Once the server is up, try exercising the flow with `curl`:
 curl -sS -X POST http://localhost:8080/checkout_sessions \
   -H 'Content-Type: application/json' \
   -d '{
-        "items": [
-          {"id": "latte", "quantity": 1},
-          {"id": "mug", "quantity": 1}
+        "line_items": [
+          {"id": "latte"},
+          {"id": "mug"}
         ],
+        "currency": "USD",
         "buyer": {
           "first_name": "Ava",
           "last_name": "Agent",

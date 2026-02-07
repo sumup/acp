@@ -9,10 +9,11 @@ import (
 type ErrorType string
 
 const (
-	InvalidRequest     ErrorType = "invalid_request"     // Missing or malformed field.
-	ProcessingError    ErrorType = "processing_error"    // Downstream gateway or network failure.
-	RateLimitExceeded  ErrorType = "rate_limit_exceeded" // Too many requests.
-	ServiceUnavailable ErrorType = "service_unavailable" // Temporary outage or maintenance.
+	InvalidRequest           ErrorType = "invalid_request"        // Missing or malformed field.
+	RequestNotIdempotentType ErrorType = "request_not_idempotent" // Idempotency violation.
+	ProcessingError          ErrorType = "processing_error"       // Downstream gateway or network failure.
+	RateLimitExceeded        ErrorType = "rate_limit_exceeded"    // Too many requests.
+	ServiceUnavailable       ErrorType = "service_unavailable"    // Temporary outage or maintenance.
 )
 
 // ErrorCode is a machine-readable identifier for the specific failure.
@@ -32,10 +33,11 @@ const (
 
 // Error represents a structured ACP error payload.
 type Error struct {
-	Type    ErrorType `json:"type"`
-	Code    ErrorCode `json:"code"`
-	Message string    `json:"message"`
-	Param   *string   `json:"param,omitempty"`
+	Type              ErrorType `json:"type"`
+	Code              ErrorCode `json:"code"`
+	Message           string    `json:"message"`
+	Param             *string   `json:"param,omitempty"`
+	SupportedVersions []string  `json:"supported_versions,omitempty"`
 
 	Internal error `json:"-"`
 
@@ -86,6 +88,16 @@ func WithRetryAfter(d time.Duration) errorOption {
 func WithInternal(err error) errorOption {
 	return func(er *Error) {
 		er.Internal = err
+	}
+}
+
+// WithSupportedVersions sets the supported protocol versions returned to clients.
+func WithSupportedVersions(versions []string) errorOption {
+	return func(er *Error) {
+		if len(versions) == 0 {
+			return
+		}
+		er.SupportedVersions = append([]string(nil), versions...)
 	}
 }
 
