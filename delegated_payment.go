@@ -72,19 +72,29 @@ func (h *DelegatedPaymentHandler) registerRoutes(middleware ...Middleware) {
 }
 
 func (h *DelegatedPaymentHandler) handleDelegatePayment(w http.ResponseWriter, r *http.Request) {
+	if err := requireIdempotencyKey(r); err != nil {
+		writeJSONError(r.Context(), w, NewHTTPError(
+			http.StatusBadRequest,
+			InvalidRequest,
+			IdempotencyKeyRequired,
+			"Idempotency-Key header is required",
+		))
+		return
+	}
+
 	var req PaymentRequest
 	if err := decodeJSON(r.Body, &req); err != nil {
-		writeJSONError(w, NewInvalidRequestError(err.Error()))
+		writeJSONError(r.Context(), w, NewInvalidRequestError(err.Error()))
 		return
 	}
 	if err := req.Validate(); err != nil {
-		writeJSONError(w, NewInvalidRequestError(err.Error()))
+		writeJSONError(r.Context(), w, NewInvalidRequestError(err.Error()))
 		return
 	}
 	resp, err := h.service.DelegatePayment(r.Context(), req)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(r.Context(), w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, resp)
+	writeJSON(r.Context(), w, http.StatusCreated, resp)
 }

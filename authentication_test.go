@@ -141,6 +141,7 @@ func newDelegatePaymentHTTPRequest(t *testing.T) *http.Request {
 	}
 	req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "idem-test")
 	return req
 }
 

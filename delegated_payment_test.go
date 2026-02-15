@@ -38,6 +38,7 @@ func TestDelegatedPaymentHandler(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "idem-test")
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -47,6 +48,9 @@ func TestDelegatedPaymentHandler(t *testing.T) {
 	}
 	if got := rec.Header().Get("API-Version"); got != APIVersion {
 		t.Fatalf("expected API-Version header %s got %s", APIVersion, got)
+	}
+	if got := rec.Header().Get("Idempotency-Key"); got != "idem-test" {
+		t.Fatalf("expected Idempotency-Key header idem-test got %s", got)
 	}
 	var resp VaultToken
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
@@ -65,6 +69,7 @@ func TestDelegatedPaymentHandlerErrors(t *testing.T) {
 
 		handler := NewDelegatedPaymentHandler(&delegatedStubService{})
 		req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", strings.NewReader("{"))
+		req.Header.Set("Idempotency-Key", "idem-test")
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		if rec.Code != http.StatusBadRequest {
@@ -81,6 +86,7 @@ func TestDelegatedPaymentHandlerErrors(t *testing.T) {
 		handler := NewDelegatedPaymentHandler(&delegatedStubService{})
 		req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Idempotency-Key", "idem-test")
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		if rec.Code != http.StatusBadRequest {
@@ -99,6 +105,7 @@ func TestDelegatedPaymentHandlerErrors(t *testing.T) {
 		body, _ := json.Marshal(sampleDelegatePaymentRequest())
 		req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Idempotency-Key", "idem-test")
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		if rec.Code != http.StatusConflict {
@@ -120,6 +127,7 @@ func TestDelegatedPaymentHandlerErrors(t *testing.T) {
 		body, _ := json.Marshal(sampleDelegatePaymentRequest())
 		req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Idempotency-Key", "idem-test")
 		rec := httptest.NewRecorder()
 
 		handler.ServeHTTP(rec, req)
@@ -143,6 +151,42 @@ func TestDelegatedPaymentHandlerErrors(t *testing.T) {
 			t.Fatalf("expected 405 got %d", rec.Code)
 		}
 	})
+
+	t.Run("missing idempotency key", func(t *testing.T) {
+		t.Parallel()
+
+		body, _ := json.Marshal(sampleDelegatePaymentRequest())
+		handler := NewDelegatedPaymentHandler(&delegatedStubService{})
+		req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 got %d", rec.Code)
+		}
+		if !strings.Contains(rec.Body.String(), string(IdempotencyKeyRequired)) {
+			t.Fatalf("expected idempotency_key_required in body, got %s", rec.Body.String())
+		}
+	})
+}
+
+func TestPaymentMethodCardIINLength(t *testing.T) {
+	t.Parallel()
+
+	req := sampleDelegatePaymentRequest()
+	iin8 := "12345678"
+	req.PaymentMethod.IIN = &iin8
+	if err := req.Validate(); err != nil {
+		t.Fatalf("expected 8-digit iin to pass, got %v", err)
+	}
+
+	iin9 := "123456789"
+	req.PaymentMethod.IIN = &iin9
+	if err := req.Validate(); err == nil {
+		t.Fatalf("expected 9-digit iin to fail")
+	}
 }
 
 type delegatedStubService struct {

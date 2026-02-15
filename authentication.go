@@ -29,25 +29,25 @@ func (h *DelegatedPaymentHandler) authenticationMiddleware(next http.HandlerFunc
 		}
 		authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
 		if authHeader == "" {
-			writeJSONError(w, NewHTTPError(http.StatusUnauthorized, InvalidRequest, MissingAuthorization, "Authorization header is required"))
+			writeJSONError(r.Context(), w, NewHTTPError(http.StatusUnauthorized, InvalidRequest, MissingAuthorization, "Authorization header is required"))
 			return
 		}
 		schema, apiKey, ok := strings.Cut(authHeader, " ")
 		if !ok || !strings.EqualFold(schema, "Bearer") {
-			writeJSONError(w, NewHTTPError(http.StatusUnauthorized, InvalidRequest, InvalidAuthorization, "Authorization header must be in the format 'Bearer <api_key>'"))
+			writeJSONError(r.Context(), w, NewHTTPError(http.StatusUnauthorized, InvalidRequest, InvalidAuthorization, "Authorization header must be in the format 'Bearer <api_key>'"))
 			return
 		}
 		if apiKey == "" {
-			writeJSONError(w, NewHTTPError(http.StatusUnauthorized, InvalidRequest, InvalidAuthorization, "API key is required"))
+			writeJSONError(r.Context(), w, NewHTTPError(http.StatusUnauthorized, InvalidRequest, InvalidAuthorization, "API key is required"))
 			return
 		}
 		if err := h.cfg.authenticator.Authenticate(r.Context(), apiKey); err != nil {
 			var httpErr *Error
 			if errors.As(err, &httpErr) {
-				writeJSONError(w, httpErr)
+				writeJSONError(r.Context(), w, httpErr)
 				return
 			}
-			writeJSONError(w, NewHTTPError(http.StatusUnauthorized, InvalidRequest, InvalidAuthorization, "invalid API key"))
+			writeJSONError(r.Context(), w, NewHTTPError(http.StatusUnauthorized, InvalidRequest, InvalidAuthorization, "invalid API key"))
 			return
 		}
 		next(w, r)

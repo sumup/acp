@@ -165,7 +165,7 @@ func (s *memoryService) CreateSession(ctx context.Context, req acp.CheckoutSessi
 			{Type: acp.TermsOfUse, Url: "https://merchant.example/terms"},
 		},
 		PaymentProvider: &acp.PaymentProvider{
-			Provider: "stripe",
+			Provider: "sumup",
 			SupportedPaymentMethods: []acp.PaymentMethod{
 				{
 					Type: acp.PaymentMethodTypeCard,
@@ -474,7 +474,7 @@ func defaultFulfillmentOptions(currency string) []acp.FulfillmentOption {
 	shipping := acp.FulfillmentOptionShipping{
 		ID:          "ship_standard",
 		Title:       "Standard Shipping",
-		Description: strPtr("2-4 business days"),
+		Description: ptr("2-4 business days"),
 		Totals: []acp.Total{
 			{Type: acp.TotalTypeFulfillment, Amount: 500, DisplayText: formatMoney(currency, 500)},
 			{Type: acp.TotalTypeTotal, Amount: 500, DisplayText: formatMoney(currency, 500)},
@@ -486,7 +486,7 @@ func defaultFulfillmentOptions(currency string) []acp.FulfillmentOption {
 	digital := acp.FulfillmentOptionDigital{
 		ID:          "pickup",
 		Title:       "In-store pickup",
-		Description: strPtr("Collect in person"),
+		Description: ptr("Collect in person"),
 		Totals: []acp.Total{
 			{Type: acp.TotalTypeTotal, Amount: 0, DisplayText: formatMoney(currency, 0)},
 		},
@@ -505,7 +505,7 @@ func defaultFulfillmentOptions(currency string) []acp.FulfillmentOption {
 	return opts
 }
 
-func strPtr(v string) *string {
+func ptr[V any](v V) *V {
 	return &v
 }
 

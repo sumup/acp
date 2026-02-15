@@ -99,7 +99,10 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/checkout_sessions/cs_123/complete",
 			body: CheckoutSessionCompleteRequest{
-				PaymentData: PaymentData{Token: strPtr("tok"), Provider: providerPtr("sumup")},
+				PaymentData: PaymentData{
+					Token:    ptr("tok"),
+					Provider: ptr(PaymentDataProvider("sumup")),
+				},
 			},
 			setupStub: func(s *stubService) {
 				s.complete = func(ctx context.Context, id string, req CheckoutSessionCompleteRequest) (*SessionWithOrder, error) {
@@ -143,6 +146,9 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 			if tt.body != nil {
 				req.Header.Set("Content-Type", "application/json")
 			}
+			if tt.method == http.MethodPost {
+				req.Header.Set("Idempotency-Key", "idem-test")
+			}
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, req)
 
@@ -152,17 +158,13 @@ func TestCheckoutHandlerRoutes(t *testing.T) {
 			if got := rec.Header().Get("API-Version"); got != APIVersion {
 				t.Fatalf("missing API-Version header")
 			}
+			if tt.method == http.MethodPost {
+				if got := rec.Header().Get("Idempotency-Key"); got != "idem-test" {
+					t.Fatalf("missing idempotency echo header, got %q", got)
+				}
+			}
 		})
 	}
-}
-
-func providerPtr(value string) *PaymentDataProvider {
-	provider := PaymentDataProvider(value)
-	return &provider
-}
-
-func strPtr(value string) *string {
-	return &value
 }
 
 func TestCheckoutHandlerErrors(t *testing.T) {
@@ -175,6 +177,7 @@ func TestCheckoutHandlerErrors(t *testing.T) {
 			},
 		})
 		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", strings.NewReader("{"))
+		req.Header.Set("Idempotency-Key", "idem-test")
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		if rec.Code != http.StatusBadRequest {
@@ -249,6 +252,7 @@ func TestCheckoutHandlerCancelWithRequest(t *testing.T) {
 	}
 	req := httptest.NewRequest(http.MethodPost, "/checkout_sessions/cs_123/cancel", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "idem-test")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -257,6 +261,24 @@ func TestCheckoutHandlerCancelWithRequest(t *testing.T) {
 	}
 	if got := rec.Header().Get("API-Version"); got != APIVersion {
 		t.Fatalf("missing API-Version header")
+	}
+}
+
+func TestCheckoutHandlerRequiresIdempotencyKeyOnPost(t *testing.T) {
+	t.Parallel()
+
+	handler := NewCheckoutHandler(&stubService{})
+	req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader([]byte(`{"line_items":[{"id":"sku_1"}],"currency":"USD"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), string(IdempotencyKeyRequired)) {
+		t.Fatalf("expected idempotency_key_required in body, got %s", rec.Body.String())
 	}
 }
 

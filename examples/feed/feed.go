@@ -71,7 +71,7 @@ func sampleProducts() []feed.Product {
 			Availability:      "in_stock",
 			SellerName:        "Example Roasters",
 			SellerURL:         "https://store.example.com",
-			InventoryQuantity: intPtr(120),
+			InventoryQuantity: ptr(120),
 			Shipping: []string{
 				"US:CA:Ground:5.00 USD",
 				"US:NY:Ground:6.00 USD",
@@ -128,6 +128,6 @@ func sampleProducts() []feed.Product {
 	}
 }
 
-func intPtr(v int) *int {
+func ptr[V any](v V) *V {
 	return &v
 }

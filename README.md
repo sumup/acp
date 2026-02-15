@@ -46,10 +46,11 @@ curl -sS -X POST http://localhost:8080/checkout_sessions/<session_id>/complete \
   -H 'Content-Type: application/json' \
   -d '{
         "payment_data": {
-          "provider": "stripe",
+          "provider": "sumup",
           "token": "pm_sample_token"
         }
       }'
+```
 
 Feel free to copy this sample into your own project and swap the in-memory store for your real product catalog, fulfillment rules, and payment hooks.
 

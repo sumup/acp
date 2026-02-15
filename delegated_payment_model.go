@@ -59,8 +59,8 @@ type PaymentMethodCard struct {
 	DisplayBrand *string `json:"display_brand,omitempty"`
 	// If the card came via a digital wallet, what type of wallet.
 	DisplayWalletType *string `json:"display_wallet_type,omitempty"`
-	// Institution Identification Number (aka BIN). The first 6 digits on a card identifying the issuer.
-	IIN *string `json:"iin,omitempty" validate:"omitempty,max=6"`
+	// Institution Identification Number (aka BIN). The first 6-8 digits on a card identifying the issuer.
+	IIN *string `json:"iin,omitempty" validate:"omitempty,max=8"`
 	// Cryptogram provided with network tokens.
 	Cryptogram *string `json:"cryptogram,omitempty"`
 	// Electronic Commerce Indicator / Security Level Indicator provided with network tokens.

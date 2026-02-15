@@ -18,42 +18,39 @@ import (
 type WebhookEventType string
 
 const (
-	WebhookEventTypeOrderCreated WebhookEventType = "order_created"
-	WebhookEventTypeOrderUpdated WebhookEventType = "order_updated"
+	// WebhookEventTypeOrderCreated is emitted when an order is first created.
+	WebhookEventTypeOrderCreated WebhookEventType = "order_create"
+	// WebhookEventTypeOrderUpdated is emitted when an existing order changes.
+	WebhookEventTypeOrderUpdated WebhookEventType = "order_update"
 )
 
 // EventDataType labels the payload for a webhook event.
 type EventDataType string
 
 const (
+	// EventDataTypeOrder indicates the webhook data payload is an order object.
 	EventDataTypeOrder EventDataType = "order"
 )
 
 // OrderStatus defines model for webhook data status.
-type OrderStatus string
+type OrderStatus = CheckoutOrderStatus
 
 const (
-	OrderStatusCreated      OrderStatus = "created"
-	OrderStatusManualReview OrderStatus = "manual_review"
-	OrderStatusConfirmed    OrderStatus = "confirmed"
-	OrderStatusCanceled     OrderStatus = "canceled"
-	OrderStatusShipped      OrderStatus = "shipped"
-	OrderStatusFulfilled    OrderStatus = "fulfilled"
+	// OrderStatusCreated indicates a newly created order.
+	OrderStatusCreated OrderStatus = CheckoutOrderStatusCreated
+	// OrderStatusConfirmed indicates order acceptance/confirmation.
+	OrderStatusConfirmed OrderStatus = CheckoutOrderStatusConfirmed
+	// OrderStatusManualReview indicates manual review is required.
+	OrderStatusManualReview OrderStatus = CheckoutOrderStatusManualReview
+	// OrderStatusProcessing indicates post-checkout processing has started.
+	OrderStatusProcessing OrderStatus = CheckoutOrderStatusProcessing
+	// OrderStatusShipped indicates the order has been shipped.
+	OrderStatusShipped OrderStatus = CheckoutOrderStatusShipped
+	// OrderStatusDelivered indicates fulfillment has completed.
+	OrderStatusDelivered OrderStatus = CheckoutOrderStatusDelivered
+	// OrderStatusCanceled indicates the order was canceled.
+	OrderStatusCanceled OrderStatus = CheckoutOrderStatusCanceled
 )
-
-// RefundType captures the source of refunded funds.
-type RefundType string
-
-const (
-	RefundTypeStoreCredit     RefundType = "store_credit"
-	RefundTypeOriginalPayment RefundType = "original_payment"
-)
-
-// Refund describes a refund emitted in webhook events.
-type Refund struct {
-	Type   RefundType `json:"type"`
-	Amount int        `json:"amount"`
-}
 
 // EventData is implemented by webhook payloads.
 type EventData interface {
@@ -62,22 +59,64 @@ type EventData interface {
 
 // OrderCreate emits order data after the order is created.
 type OrderCreate struct {
-	Type              EventDataType `json:"type"`
-	CheckoutSessionID string        `json:"checkout_session_id"`
-	PermalinkURL      string        `json:"permalink_url"`
-	Status            OrderStatus   `json:"status"`
-	Refunds           []Refund      `json:"refunds"`
+	// Type is the webhook payload discriminator and is always "order".
+	Type EventDataType `json:"type"`
+	// ID is the order identifier.
+	ID *string `json:"id,omitempty"`
+	// CheckoutSessionID identifies the checkout session that produced this order.
+	CheckoutSessionID string `json:"checkout_session_id"`
+	// OrderNumber is a human-readable order reference.
+	OrderNumber *string `json:"order_number,omitempty"`
+	// PermalinkURL is the buyer-facing order URL.
+	PermalinkURL string `json:"permalink_url"`
+	// Status is the order lifecycle state at event emission time.
+	Status OrderStatus `json:"status"`
+	// EstimatedDelivery is the expected delivery window.
+	EstimatedDelivery *EstimatedDelivery `json:"estimated_delivery,omitempty"`
+	// Confirmation contains receipt and confirmation metadata.
+	Confirmation *OrderConfirmation `json:"confirmation,omitempty"`
+	// Support contains merchant support contact details.
+	Support *SupportInfo `json:"support,omitempty"`
+	// LineItems describes ordered items and item-level fulfillment progress.
+	LineItems []OrderLineItem `json:"line_items,omitempty"`
+	// Fulfillments describes shipping/pickup/digital delivery state.
+	Fulfillments []Fulfillment `json:"fulfillments,omitempty"`
+	// Adjustments describes refunds, credits, returns, and disputes.
+	Adjustments []Adjustment `json:"adjustments,omitempty"`
+	// Totals is an order-level totals breakdown.
+	Totals []Total `json:"totals,omitempty"`
 }
 
 func (OrderCreate) eventType() WebhookEventType { return WebhookEventTypeOrderCreated }
 
 // OrderUpdated emits order data whenever the order status changes.
 type OrderUpdated struct {
-	Type              EventDataType `json:"type"`
-	CheckoutSessionID string        `json:"checkout_session_id"`
-	PermalinkURL      string        `json:"permalink_url"`
-	Status            OrderStatus   `json:"status"`
-	Refunds           []Refund      `json:"refunds"`
+	// Type is the webhook payload discriminator and is always "order".
+	Type EventDataType `json:"type"`
+	// ID is the order identifier.
+	ID *string `json:"id,omitempty"`
+	// CheckoutSessionID identifies the checkout session that produced this order.
+	CheckoutSessionID string `json:"checkout_session_id"`
+	// OrderNumber is a human-readable order reference.
+	OrderNumber *string `json:"order_number,omitempty"`
+	// PermalinkURL is the buyer-facing order URL.
+	PermalinkURL string `json:"permalink_url"`
+	// Status is the order lifecycle state at event emission time.
+	Status OrderStatus `json:"status"`
+	// EstimatedDelivery is the expected delivery window.
+	EstimatedDelivery *EstimatedDelivery `json:"estimated_delivery,omitempty"`
+	// Confirmation contains receipt and confirmation metadata.
+	Confirmation *OrderConfirmation `json:"confirmation,omitempty"`
+	// Support contains merchant support contact details.
+	Support *SupportInfo `json:"support,omitempty"`
+	// LineItems describes ordered items and item-level fulfillment progress.
+	LineItems []OrderLineItem `json:"line_items,omitempty"`
+	// Fulfillments describes shipping/pickup/digital delivery state.
+	Fulfillments []Fulfillment `json:"fulfillments,omitempty"`
+	// Adjustments describes refunds, credits, returns, and disputes.
+	Adjustments []Adjustment `json:"adjustments,omitempty"`
+	// Totals is an order-level totals breakdown.
+	Totals []Total `json:"totals,omitempty"`
 }
 
 func (OrderUpdated) eventType() WebhookEventType { return WebhookEventTypeOrderUpdated }

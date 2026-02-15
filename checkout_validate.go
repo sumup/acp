@@ -48,11 +48,30 @@ func (r CheckoutSessionUpdateRequest) Validate() error {
 
 // Validate ensures CheckoutSessionCompleteRequest satisfies payment requirements.
 func (r CheckoutSessionCompleteRequest) Validate() error {
+	hasHandlerInstrument := r.PaymentData.HandlerID != nil && *r.PaymentData.HandlerID != "" &&
+		r.PaymentData.Instrument != nil
 	hasTokenProvider := r.PaymentData.Token != nil && *r.PaymentData.Token != "" &&
 		r.PaymentData.Provider != nil && *r.PaymentData.Provider != ""
 	hasPurchaseOrder := r.PaymentData.PurchaseOrderNumber != nil && *r.PaymentData.PurchaseOrderNumber != ""
-	if !hasTokenProvider && !hasPurchaseOrder {
-		return errors.New("payment_data requires token+provider or purchase_order_number")
+	if !hasHandlerInstrument && !hasTokenProvider && !hasPurchaseOrder {
+		return errors.New("payment_data requires handler_id+instrument, token+provider, or purchase_order_number")
+	}
+	if r.PaymentData.HandlerID != nil && *r.PaymentData.HandlerID != "" {
+		if r.PaymentData.Instrument == nil {
+			return errors.New("payment_data.instrument is required when payment_data.handler_id is set")
+		}
+		if r.PaymentData.Instrument.Type == "" {
+			return errors.New("payment_data.instrument.type is required")
+		}
+		if r.PaymentData.Instrument.Credential.Type == "" {
+			return errors.New("payment_data.instrument.credential.type is required")
+		}
+		if r.PaymentData.Instrument.Credential.Token == "" {
+			return errors.New("payment_data.instrument.credential.token is required")
+		}
+	}
+	if r.PaymentData.Instrument != nil && (r.PaymentData.HandlerID == nil || *r.PaymentData.HandlerID == "") {
+		return errors.New("payment_data.handler_id is required when payment_data.instrument is set")
 	}
 	if r.PaymentData.Token != nil && *r.PaymentData.Token != "" && (r.PaymentData.Provider == nil || *r.PaymentData.Provider == "") {
 		return errors.New("payment_data.provider is required when payment_data.token is set")

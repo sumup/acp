@@ -282,18 +282,29 @@ const (
 	PaymentTermsNet90     PaymentTerms = "net_90"
 )
 
-// CheckoutOrderStatus defines model for Order.Status.
+// CheckoutOrderStatus is the order-level lifecycle status returned in Order.
+// It aligns with the webhook/order superset used for post-purchase tracking.
 type CheckoutOrderStatus string
 
 // Defines values for CheckoutOrderStatus.
 const (
-	CheckoutOrderStatusConfirmed  CheckoutOrderStatus = "confirmed"
+	// CheckoutOrderStatusCreated indicates an order record has been created.
+	CheckoutOrderStatusCreated CheckoutOrderStatus = "created"
+	// CheckoutOrderStatusConfirmed indicates the order has been accepted/confirmed.
+	CheckoutOrderStatusConfirmed CheckoutOrderStatus = "confirmed"
+	// CheckoutOrderStatusManualReview indicates the order is waiting for manual review.
+	CheckoutOrderStatusManualReview CheckoutOrderStatus = "manual_review"
+	// CheckoutOrderStatusProcessing indicates fulfillment/processing has started.
 	CheckoutOrderStatusProcessing CheckoutOrderStatus = "processing"
-	CheckoutOrderStatusShipped    CheckoutOrderStatus = "shipped"
-	CheckoutOrderStatusDelivered  CheckoutOrderStatus = "delivered"
+	// CheckoutOrderStatusShipped indicates at least one shipment has been handed off.
+	CheckoutOrderStatusShipped CheckoutOrderStatus = "shipped"
+	// CheckoutOrderStatusDelivered indicates fulfillment is complete and delivered.
+	CheckoutOrderStatusDelivered CheckoutOrderStatus = "delivered"
+	// CheckoutOrderStatusCanceled indicates the order has been canceled.
+	CheckoutOrderStatusCanceled CheckoutOrderStatus = "canceled"
 )
 
-// TotalType defines model for Total.Type.
+// TotalType identifies a monetary component in a totals breakdown.
 type TotalType string
 
 // Defines values for TotalType.
@@ -309,6 +320,8 @@ const (
 	TotalTypeTax             TotalType = "tax"
 	TotalTypeTip             TotalType = "tip"
 	TotalTypeTotal           TotalType = "total"
+	// TotalTypeAmountRefunded tracks cumulative refunded amount post-purchase.
+	TotalTypeAmountRefunded TotalType = "amount_refunded"
 )
 
 // Address defines model for Address.
@@ -718,20 +731,276 @@ type MessageError struct {
 
 // Order defines model for Order.
 type Order struct {
-	ID                string               `json:"id"`
-	CheckoutSessionId string               `json:"checkout_session_id"`
-	OrderNumber       *string              `json:"order_number,omitempty"`
-	PermalinkUrl      string               `json:"permalink_url"`
-	Status            *CheckoutOrderStatus `json:"status,omitempty"`
-	EstimatedDelivery *EstimatedDelivery   `json:"estimated_delivery,omitempty"`
-	Confirmation      *OrderConfirmation   `json:"confirmation,omitempty"`
-	Support           *SupportInfo         `json:"support,omitempty"`
+	// Type is the discriminator for webhook payloads when present.
+	Type *EventDataType `json:"type,omitempty"`
+	// ID is the order identifier.
+	ID string `json:"id"`
+	// CheckoutSessionId identifies the checkout session used to create this order.
+	CheckoutSessionId string `json:"checkout_session_id"`
+	// OrderNumber is a human-readable order reference.
+	OrderNumber *string `json:"order_number,omitempty"`
+	// PermalinkUrl is the buyer-facing URL to view order details.
+	PermalinkUrl string `json:"permalink_url"`
+	// Status is the order-level lifecycle state.
+	Status *CheckoutOrderStatus `json:"status,omitempty"`
+	// EstimatedDelivery is the expected delivery window for this order.
+	EstimatedDelivery *EstimatedDelivery `json:"estimated_delivery,omitempty"`
+	// Confirmation contains confirmation metadata such as receipt URL.
+	Confirmation *OrderConfirmation `json:"confirmation,omitempty"`
+	// Support contains merchant support contact details for this order.
+	Support *SupportInfo `json:"support,omitempty"`
+	// LineItems tracks ordered items and fulfillment progress.
+	LineItems []OrderLineItem `json:"line_items,omitempty"`
+	// Fulfillments tracks shipping, pickup, and digital delivery.
+	Fulfillments []Fulfillment `json:"fulfillments,omitempty"`
+	// Adjustments tracks post-order changes like refunds/returns/disputes.
+	Adjustments []Adjustment `json:"adjustments,omitempty"`
+	// Totals captures order-level financial breakdown, including amount_refunded.
+	Totals []Total `json:"totals,omitempty"`
+}
+
+// OrderLineItemStatus represents per-line fulfillment progress in an order.
+type OrderLineItemStatus string
+
+// Defines values for OrderLineItemStatus.
+const (
+	// OrderLineItemStatusProcessing means no units have shipped yet.
+	OrderLineItemStatusProcessing OrderLineItemStatus = "processing"
+	// OrderLineItemStatusPartial means some but not all units have shipped.
+	OrderLineItemStatusPartial OrderLineItemStatus = "partial"
+	// OrderLineItemStatusShipped means all ordered units have shipped.
+	OrderLineItemStatusShipped OrderLineItemStatus = "shipped"
+	// OrderLineItemStatusDelivered means the item has been delivered.
+	OrderLineItemStatusDelivered OrderLineItemStatus = "delivered"
+	// OrderLineItemStatusCanceled means fulfillment for this item was canceled.
+	OrderLineItemStatusCanceled OrderLineItemStatus = "canceled"
+)
+
+// OrderLineItemQuantity captures ordered vs shipped quantity for a line item.
+// Shipped is optional and defaults to zero when omitted.
+type OrderLineItemQuantity struct {
+	// Ordered is the quantity originally purchased.
+	Ordered int `json:"ordered"`
+	// Shipped is the quantity handed to carrier/fulfilled so far.
+	Shipped *int `json:"shipped,omitempty"`
+}
+
+// OrderLineItem is a post-purchase line item with optional fulfillment and price details.
+type OrderLineItem struct {
+	// ID is the line item identifier for references in fulfillments/adjustments.
+	ID string `json:"id"`
+	// Title is the product name.
+	Title string `json:"title"`
+	// ProductID is the merchant catalog product identifier.
+	ProductID *string `json:"product_id,omitempty"`
+	// Description is the product description.
+	Description *string `json:"description,omitempty"`
+	// ImageURL is the product image URL.
+	ImageURL *string `json:"image_url,omitempty"`
+	// URL is the product page URL.
+	URL *string `json:"url,omitempty"`
+	// Quantity tracks ordered vs shipped units.
+	Quantity OrderLineItemQuantity `json:"quantity"`
+	// UnitPrice is the price per unit in minor currency units.
+	UnitPrice *int `json:"unit_price,omitempty"`
+	// Subtotal is quantity.ordered * unit_price in minor currency units.
+	Subtotal *int `json:"subtotal,omitempty"`
+	// Totals is the optional line-item totals breakdown.
+	Totals []Total `json:"totals,omitempty"`
+	// Status is the current fulfillment state for this line item.
+	Status *OrderLineItemStatus `json:"status,omitempty"`
+}
+
+// LineItemReference points to a line item and quantity in fulfillments/adjustments.
+type LineItemReference struct {
+	// ID references an OrderLineItem.ID.
+	ID string `json:"id"`
+	// Quantity is the affected quantity for this reference.
+	Quantity int `json:"quantity"`
+}
+
+// FulfillmentType identifies the delivery method for a fulfillment.
+type FulfillmentType string
+
+// Defines values for FulfillmentType.
+const (
+	// FulfillmentTypeShipping is carrier shipment.
+	FulfillmentTypeShipping FulfillmentType = "shipping"
+	// FulfillmentTypePickup is in-store or curbside pickup.
+	FulfillmentTypePickup FulfillmentType = "pickup"
+	// FulfillmentTypeDigital is non-physical digital delivery.
+	FulfillmentTypeDigital FulfillmentType = "digital"
+)
+
+// FulfillmentStatus is the current state of a fulfillment.
+// Not every state applies to every fulfillment type.
+type FulfillmentStatus string
+
+// Defines values for FulfillmentStatus.
+const (
+	// FulfillmentStatusPending means fulfillment is queued but not started.
+	FulfillmentStatusPending FulfillmentStatus = "pending"
+	// FulfillmentStatusProcessing means fulfillment is in progress.
+	FulfillmentStatusProcessing FulfillmentStatus = "processing"
+	// FulfillmentStatusShipped means shipment was handed to a carrier.
+	FulfillmentStatusShipped FulfillmentStatus = "shipped"
+	// FulfillmentStatusInTransit means shipment is moving through carrier network.
+	FulfillmentStatusInTransit FulfillmentStatus = "in_transit"
+	// FulfillmentStatusOutForDelivery means final-mile delivery is in progress.
+	FulfillmentStatusOutForDelivery FulfillmentStatus = "out_for_delivery"
+	// FulfillmentStatusReadyForPickup means buyer can collect the order.
+	FulfillmentStatusReadyForPickup FulfillmentStatus = "ready_for_pickup"
+	// FulfillmentStatusDelivered means fulfillment completed successfully.
+	FulfillmentStatusDelivered FulfillmentStatus = "delivered"
+	// FulfillmentStatusFailed means fulfillment could not be completed.
+	FulfillmentStatusFailed FulfillmentStatus = "failed"
+	// FulfillmentStatusCanceled means fulfillment was canceled.
+	FulfillmentStatusCanceled FulfillmentStatus = "canceled"
+)
+
+// FulfillmentEventType is a point-in-time event in a fulfillment timeline.
+type FulfillmentEventType string
+
+// Defines values for FulfillmentEventType.
+const (
+	// FulfillmentEventTypeProcessing indicates processing activity.
+	FulfillmentEventTypeProcessing FulfillmentEventType = "processing"
+	// FulfillmentEventTypeShipped indicates carrier handoff.
+	FulfillmentEventTypeShipped FulfillmentEventType = "shipped"
+	// FulfillmentEventTypeInTransit indicates carrier network transit.
+	FulfillmentEventTypeInTransit FulfillmentEventType = "in_transit"
+	// FulfillmentEventTypeOutForDelivery indicates final-mile dispatch.
+	FulfillmentEventTypeOutForDelivery FulfillmentEventType = "out_for_delivery"
+	// FulfillmentEventTypeReadyForPickup indicates pickup availability.
+	FulfillmentEventTypeReadyForPickup FulfillmentEventType = "ready_for_pickup"
+	// FulfillmentEventTypeDelivered indicates successful delivery.
+	FulfillmentEventTypeDelivered FulfillmentEventType = "delivered"
+	// FulfillmentEventTypeFailedAttempt indicates an unsuccessful delivery attempt.
+	FulfillmentEventTypeFailedAttempt FulfillmentEventType = "failed_attempt"
+	// FulfillmentEventTypeReturned indicates returned/return-to-sender flow.
+	FulfillmentEventTypeReturned FulfillmentEventType = "returned"
+)
+
+// FulfillmentDigitalDelivery holds digital access details for digital fulfillments.
+type FulfillmentDigitalDelivery struct {
+	// AccessURL is the URL where the buyer can access the digital content.
+	AccessURL *string `json:"access_url,omitempty"`
+	// LicenseKey is an activation/license key when applicable.
+	LicenseKey *string `json:"license_key,omitempty"`
+	// ExpiresAt is the RFC3339 timestamp after which access expires.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}
+
+// FulfillmentEvent is an immutable event entry describing fulfillment progress.
+type FulfillmentEvent struct {
+	// ID is the event identifier.
+	ID string `json:"id"`
+	// Type is the event type.
+	Type FulfillmentEventType `json:"type"`
+	// OccurredAt is the RFC3339 timestamp when the event occurred.
+	OccurredAt time.Time `json:"occurred_at"`
+	// Description is optional human-readable event detail.
+	Description *string `json:"description,omitempty"`
+	// Location is the optional location of the event.
+	Location *string `json:"location,omitempty"`
+}
+
+// Fulfillment describes how some order items are delivered (shipping, pickup, digital).
+type Fulfillment struct {
+	// ID is the fulfillment identifier.
+	ID string `json:"id"`
+	// Type selects shipping, pickup, or digital delivery.
+	Type FulfillmentType `json:"type"`
+	// Status is the current fulfillment state.
+	Status *FulfillmentStatus `json:"status,omitempty"`
+	// LineItems lists included line items and quantities.
+	LineItems []LineItemReference `json:"line_items,omitempty"`
+	// Carrier is the shipping carrier name for shipping fulfillments.
+	Carrier *string `json:"carrier,omitempty"`
+	// TrackingNumber is the carrier tracking number for shipping fulfillments.
+	TrackingNumber *string `json:"tracking_number,omitempty"`
+	// TrackingURL is the external tracking URL for shipping fulfillments.
+	TrackingURL *string `json:"tracking_url,omitempty"`
+	// Destination is the destination address when applicable.
+	Destination *Address `json:"destination,omitempty"`
+	// EstimatedDelivery is the expected delivery window.
+	EstimatedDelivery *EstimatedDelivery `json:"estimated_delivery,omitempty"`
+	// DigitalDelivery contains digital access credentials/links.
+	DigitalDelivery *FulfillmentDigitalDelivery `json:"digital_delivery,omitempty"`
+	// Description is optional human-readable fulfillment context.
+	Description *string `json:"description,omitempty"`
+	// Events is an append-only progress log.
+	Events []FulfillmentEvent `json:"events,omitempty"`
+}
+
+// AdjustmentType classifies a post-order change such as refunds or disputes.
+type AdjustmentType string
+
+// Defines values for AdjustmentType.
+const (
+	// AdjustmentTypeRefund is a full refund.
+	AdjustmentTypeRefund AdjustmentType = "refund"
+	// AdjustmentTypePartialRefund is a partial refund.
+	AdjustmentTypePartialRefund AdjustmentType = "partial_refund"
+	// AdjustmentTypeStoreCredit grants store credit.
+	AdjustmentTypeStoreCredit AdjustmentType = "store_credit"
+	// AdjustmentTypeReturn records returned goods.
+	AdjustmentTypeReturn AdjustmentType = "return"
+	// AdjustmentTypeExchange records an item exchange.
+	AdjustmentTypeExchange AdjustmentType = "exchange"
+	// AdjustmentTypeCancellation records a cancellation adjustment.
+	AdjustmentTypeCancellation AdjustmentType = "cancellation"
+	// AdjustmentTypeDispute records a dispute.
+	AdjustmentTypeDispute AdjustmentType = "dispute"
+	// AdjustmentTypeChargeback records a chargeback.
+	AdjustmentTypeChargeback AdjustmentType = "chargeback"
+)
+
+// AdjustmentStatus is the processing state of an order adjustment.
+type AdjustmentStatus string
+
+// Defines values for AdjustmentStatus.
+const (
+	// AdjustmentStatusPending means processing has not finished yet.
+	AdjustmentStatusPending AdjustmentStatus = "pending"
+	// AdjustmentStatusCompleted means the adjustment was applied.
+	AdjustmentStatusCompleted AdjustmentStatus = "completed"
+	// AdjustmentStatusFailed means the adjustment failed.
+	AdjustmentStatusFailed AdjustmentStatus = "failed"
+)
+
+// Adjustment is a post-order financial/logistical change (refund, return, dispute, etc.).
+type Adjustment struct {
+	// ID is the adjustment identifier.
+	ID string `json:"id"`
+	// Type classifies the adjustment.
+	Type AdjustmentType `json:"type"`
+	// OccurredAt is the RFC3339 timestamp for the adjustment event.
+	OccurredAt time.Time `json:"occurred_at"`
+	// Status is the adjustment processing status.
+	Status AdjustmentStatus `json:"status"`
+	// LineItems lists affected line items and quantities.
+	LineItems []LineItemReference `json:"line_items,omitempty"`
+	// Amount is the credited amount in minor units, inclusive of tax.
+	Amount *int `json:"amount,omitempty"`
+	// Currency is the ISO 4217 currency code for Amount.
+	Currency *string `json:"currency,omitempty"`
+	// Description is an optional human-readable explanation.
+	Description *string `json:"description,omitempty"`
+	// Reason is an optional structured reason code.
+	Reason *string `json:"reason,omitempty"`
 }
 
 // PaymentData defines model for PaymentData.
 type PaymentData struct {
+	// HandlerID identifies which advertised payment handler to use.
+	HandlerID *string `json:"handler_id,omitempty"`
+	// Instrument carries handler-specific payment instrument details.
+	Instrument *PaymentInstrument `json:"instrument,omitempty"`
+	// Deprecated: prefer handler_id + instrument for ACP payment handlers.
 	// Token is a provider-issued payment token (required with Provider).
 	Token *string `json:"token,omitempty"`
+	// Deprecated: prefer handler_id + instrument for ACP payment handlers.
 	// Provider identifies the payment provider that issued Token.
 	Provider       *PaymentDataProvider `json:"provider,omitempty"`
 	BillingAddress *Address             `json:"billing_address,omitempty"`
@@ -743,6 +1012,22 @@ type PaymentData struct {
 	DueDate *time.Time `json:"due_date,omitempty"`
 	// ApprovalRequired signals whether buyer approval is required before payment capture.
 	ApprovalRequired *bool `json:"approval_required,omitempty"`
+}
+
+// PaymentInstrument describes the selected payment instrument.
+type PaymentInstrument struct {
+	// Type is the instrument type (for example "card" or "wallet_token").
+	Type string `json:"type"`
+	// Credential carries the credential required by the selected handler.
+	Credential PaymentCredential `json:"credential"`
+}
+
+// PaymentCredential holds a credential token used by a payment instrument.
+type PaymentCredential struct {
+	// Type is the credential type (for example "spt" or "wallet_token").
+	Type string `json:"type"`
+	// Token is the opaque credential/token value.
+	Token string `json:"token"`
 }
 
 // PaymentDataProvider defines model for PaymentData.Provider.

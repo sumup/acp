@@ -93,3 +93,72 @@ func TestErrorSupportedVersions(t *testing.T) {
 		t.Fatalf("unexpected supported_versions %v", body["supported_versions"])
 	}
 }
+
+func TestWebhookEventTypeMatchesSpec(t *testing.T) {
+	t.Parallel()
+
+	if WebhookEventTypeOrderCreated != "order_create" {
+		t.Fatalf("unexpected order_created event value: %q", WebhookEventTypeOrderCreated)
+	}
+	if WebhookEventTypeOrderUpdated != "order_update" {
+		t.Fatalf("unexpected order_updated event value: %q", WebhookEventTypeOrderUpdated)
+	}
+}
+
+func TestTotalAmountRefundedMarshals(t *testing.T) {
+	t.Parallel()
+
+	total := Total{
+		Type:        TotalTypeAmountRefunded,
+		DisplayText: "Refunded",
+		Amount:      500,
+	}
+	data, err := json.Marshal(total)
+	if err != nil {
+		t.Fatalf("marshal total: %v", err)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(data, &body); err != nil {
+		t.Fatalf("unmarshal total: %v", err)
+	}
+	if got, _ := body["type"].(string); got != "amount_refunded" {
+		t.Fatalf("unexpected total type %q", got)
+	}
+}
+
+func TestPaymentDataHandlerIDAndInstrumentMarshals(t *testing.T) {
+	t.Parallel()
+
+	p := PaymentData{
+		HandlerID: ptr("handler_sumup_card"),
+		Instrument: &PaymentInstrument{
+			Type: "card",
+			Credential: PaymentCredential{
+				Type:  "spt",
+				Token: "spt_123",
+			},
+		},
+	}
+	data, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("marshal payment_data: %v", err)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(data, &body); err != nil {
+		t.Fatalf("unmarshal payment_data: %v", err)
+	}
+	if got, _ := body["handler_id"].(string); got != "handler_sumup_card" {
+		t.Fatalf("unexpected handler_id %q", got)
+	}
+	instrument, ok := body["instrument"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected instrument object, got %T", body["instrument"])
+	}
+	credential, ok := instrument["credential"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected credential object, got %T", instrument["credential"])
+	}
+	if got, _ := credential["token"].(string); got != "spt_123" {
+		t.Fatalf("unexpected credential token %q", got)
+	}
+}

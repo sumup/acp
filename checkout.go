@@ -73,107 +73,147 @@ func (h *CheckoutHandler) registerRoutes(middleware ...Middleware) {
 }
 
 func (h *CheckoutHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
+	if err := requireIdempotencyKey(r); err != nil {
+		writeJSONError(r.Context(), w, NewHTTPError(
+			http.StatusBadRequest,
+			InvalidRequest,
+			IdempotencyKeyRequired,
+			"Idempotency-Key header is required",
+		))
+		return
+	}
+
 	var req CheckoutSessionCreateRequest
 	if err := decodeJSON(r.Body, &req); errors.Is(err, io.EOF) {
-		writeJSONError(w, NewInvalidRequestError("request body required"))
+		writeJSONError(r.Context(), w, NewInvalidRequestError("request body required"))
 		return
 	} else if err != nil {
-		writeJSONError(w, NewInvalidRequestError(err.Error()))
+		writeJSONError(r.Context(), w, NewInvalidRequestError(err.Error()))
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		writeJSONError(w, NewInvalidRequestError(err.Error()))
+		writeJSONError(r.Context(), w, NewInvalidRequestError(err.Error()))
 		return
 	}
 
 	session, err := h.service.CreateSession(r.Context(), req)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(r.Context(), w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, session)
+	writeJSON(r.Context(), w, http.StatusCreated, session)
 }
 
 func (h *CheckoutHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		writeJSONError(w, NewInvalidRequestError("checkout_session_id is required"))
+		writeJSONError(r.Context(), w, NewInvalidRequestError("checkout_session_id is required"))
 		return
 	}
 
 	session, err := h.service.GetSession(r.Context(), id)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(r.Context(), w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, session)
+	writeJSON(r.Context(), w, http.StatusOK, session)
 }
 
 func (h *CheckoutHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
+	if err := requireIdempotencyKey(r); err != nil {
+		writeJSONError(r.Context(), w, NewHTTPError(
+			http.StatusBadRequest,
+			InvalidRequest,
+			IdempotencyKeyRequired,
+			"Idempotency-Key header is required",
+		))
+		return
+	}
+
 	id := r.PathValue("id")
 	if id == "" {
-		writeJSONError(w, NewInvalidRequestError("checkout_session_id is required"))
+		writeJSONError(r.Context(), w, NewInvalidRequestError("checkout_session_id is required"))
 		return
 	}
 
 	var req CheckoutSessionUpdateRequest
 	if err := decodeJSON(r.Body, &req); errors.Is(err, io.EOF) {
-		writeJSONError(w, NewInvalidRequestError("request body required"))
+		writeJSONError(r.Context(), w, NewInvalidRequestError("request body required"))
 		return
 	} else if err != nil {
-		writeJSONError(w, NewInvalidRequestError(err.Error()))
+		writeJSONError(r.Context(), w, NewInvalidRequestError(err.Error()))
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		writeJSONError(w, NewInvalidRequestError(err.Error()))
+		writeJSONError(r.Context(), w, NewInvalidRequestError(err.Error()))
 		return
 	}
 
 	session, err := h.service.UpdateSession(r.Context(), id, req)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(r.Context(), w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, session)
+	writeJSON(r.Context(), w, http.StatusOK, session)
 }
 
 func (h *CheckoutHandler) handleComplete(w http.ResponseWriter, r *http.Request) {
+	if err := requireIdempotencyKey(r); err != nil {
+		writeJSONError(r.Context(), w, NewHTTPError(
+			http.StatusBadRequest,
+			InvalidRequest,
+			IdempotencyKeyRequired,
+			"Idempotency-Key header is required",
+		))
+		return
+	}
+
 	id := r.PathValue("id")
 	if id == "" {
-		writeJSONError(w, NewInvalidRequestError("checkout_session_id is required"))
+		writeJSONError(r.Context(), w, NewInvalidRequestError("checkout_session_id is required"))
 		return
 	}
 
 	var req CheckoutSessionCompleteRequest
 	if err := decodeJSON(r.Body, &req); errors.Is(err, io.EOF) {
-		writeJSONError(w, NewInvalidRequestError("request body required"))
+		writeJSONError(r.Context(), w, NewInvalidRequestError("request body required"))
 		return
 	} else if err != nil {
-		writeJSONError(w, NewInvalidRequestError(err.Error()))
+		writeJSONError(r.Context(), w, NewInvalidRequestError(err.Error()))
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		writeJSONError(w, NewInvalidRequestError(err.Error()))
+		writeJSONError(r.Context(), w, NewInvalidRequestError(err.Error()))
 		return
 	}
 	session, err := h.service.CompleteSession(r.Context(), id, req)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(r.Context(), w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, session)
+	writeJSON(r.Context(), w, http.StatusOK, session)
 }
 
 func (h *CheckoutHandler) handleCancel(w http.ResponseWriter, r *http.Request) {
+	if err := requireIdempotencyKey(r); err != nil {
+		writeJSONError(r.Context(), w, NewHTTPError(
+			http.StatusBadRequest,
+			InvalidRequest,
+			IdempotencyKeyRequired,
+			"Idempotency-Key header is required",
+		))
+		return
+	}
+
 	id := r.PathValue("id")
 	if id == "" {
-		writeJSONError(w, NewInvalidRequestError("checkout_session_id is required"))
+		writeJSONError(r.Context(), w, NewInvalidRequestError("checkout_session_id is required"))
 		return
 	}
 
@@ -181,19 +221,19 @@ func (h *CheckoutHandler) handleCancel(w http.ResponseWriter, r *http.Request) {
 	if r.Body != nil {
 		// empty body is fine here and supported according to the specs
 		if err := decodeJSON(r.Body, &req); err != nil && !errors.Is(err, io.EOF) {
-			writeJSONError(w, NewInvalidRequestError(err.Error()))
+			writeJSONError(r.Context(), w, NewInvalidRequestError(err.Error()))
 			return
 		}
 		if err := req.Validate(); err != nil {
-			writeJSONError(w, NewInvalidRequestError(err.Error()))
+			writeJSONError(r.Context(), w, NewInvalidRequestError(err.Error()))
 			return
 		}
 	}
 
 	session, err := h.service.CancelSession(r.Context(), id, &req)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(r.Context(), w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, session)
+	writeJSON(r.Context(), w, http.StatusOK, session)
 }

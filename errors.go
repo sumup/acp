@@ -9,7 +9,8 @@ import (
 type ErrorType string
 
 const (
-	InvalidRequest           ErrorType = "invalid_request"        // Missing or malformed field.
+	InvalidRequest ErrorType = "invalid_request" // Missing or malformed field.
+	// Deprecated: use invalid_request + code idempotency_conflict/idempotency_key_required/idempotency_in_flight.
 	RequestNotIdempotentType ErrorType = "request_not_idempotent" // Idempotency violation.
 	ProcessingError          ErrorType = "processing_error"       // Downstream gateway or network failure.
 	RateLimitExceeded        ErrorType = "rate_limit_exceeded"    // Too many requests.
@@ -20,15 +21,17 @@ const (
 type ErrorCode string
 
 const (
-	DuplicateRequest     ErrorCode = "duplicate_request"     // Safe duplicate with the same idempotency key.
-	IdempotencyConflict  ErrorCode = "idempotency_conflict"  // Same idempotency key but different parameters.
-	InvalidCard          ErrorCode = "invalid_card"          // Credential failed basic validation (such as length or expiry).
-	InvalidSignature     ErrorCode = "invalid_signature"     // Signature is missing or does not match the payload.
-	SignatureRequired    ErrorCode = "signature_required"    // Signed requests are required but headers were missing.
-	StaleTimestamp       ErrorCode = "stale_timestamp"       // Timestamp skew exceeded the allowed window.
-	MissingAuthorization ErrorCode = "missing_authorization" // Authorization header missing.
-	InvalidAuthorization ErrorCode = "invalid_authorization" // Authorization header malformed or API key invalid.
-	RequestNotIdempotent ErrorCode = "request_not_idempotent"
+	DuplicateRequest       ErrorCode = "duplicate_request"        // Safe duplicate with the same idempotency key.
+	IdempotencyConflict    ErrorCode = "idempotency_conflict"     // Same idempotency key but different parameters.
+	IdempotencyKeyRequired ErrorCode = "idempotency_key_required" // Idempotency-Key header is missing.
+	IdempotencyInFlight    ErrorCode = "idempotency_in_flight"    // Request with same idempotency key is still processing.
+	InvalidCard            ErrorCode = "invalid_card"             // Credential failed basic validation (such as length or expiry).
+	InvalidSignature       ErrorCode = "invalid_signature"        // Signature is missing or does not match the payload.
+	SignatureRequired      ErrorCode = "signature_required"       // Signed requests are required but headers were missing.
+	StaleTimestamp         ErrorCode = "stale_timestamp"          // Timestamp skew exceeded the allowed window.
+	MissingAuthorization   ErrorCode = "missing_authorization"    // Authorization header missing.
+	InvalidAuthorization   ErrorCode = "invalid_authorization"    // Authorization header malformed or API key invalid.
+	RequestNotIdempotent   ErrorCode = "request_not_idempotent"
 )
 
 // Error represents a structured ACP error payload.

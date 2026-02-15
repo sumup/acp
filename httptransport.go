@@ -1,6 +1,7 @@
 package acp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -8,6 +9,8 @@ import (
 	"strconv"
 	"time"
 )
+
+var errMissingIdempotencyKey = errors.New("Idempotency-Key header is required")
 
 func decodeJSON(body io.ReadCloser, v any) error {
 	defer func() { _ = body.Close() }()
@@ -22,21 +25,21 @@ func decodeJSON(body io.ReadCloser, v any) error {
 	return nil
 }
 
-func writeServiceError(w http.ResponseWriter, err error) {
+func writeServiceError(ctx context.Context, w http.ResponseWriter, err error) {
 	var httpErr *Error
 	if errors.As(err, &httpErr) {
-		writeJSONError(w, httpErr)
+		writeJSONError(ctx, w, httpErr)
 		return
 	}
-	writeJSONError(w, NewProcessingError("internal server error"))
+	writeJSONError(ctx, w, NewProcessingError("internal server error"))
 }
 
-func writeJSONError(w http.ResponseWriter, payload *Error) {
+func writeJSONError(ctx context.Context, w http.ResponseWriter, payload *Error) {
 	if payload == nil {
 		payload = NewProcessingError("internal server error")
 	}
+	setCommonResponseHeaders(w, ctx)
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("API-Version", APIVersion)
 	if seconds := retryAfterSeconds(payload.RetryAfter()); seconds > 0 {
 		w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
 	}
@@ -44,9 +47,9 @@ func writeJSONError(w http.ResponseWriter, payload *Error) {
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
-func writeJSON(w http.ResponseWriter, status int, payload any) {
+func writeJSON(ctx context.Context, w http.ResponseWriter, status int, payload any) {
+	setCommonResponseHeaders(w, ctx)
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("API-Version", APIVersion)
 	w.WriteHeader(status)
 	if payload == nil {
 		return
@@ -66,4 +69,19 @@ func retryAfterSeconds(d time.Duration) int64 {
 		return 1
 	}
 	return int64(seconds)
+}
+
+func setCommonResponseHeaders(w http.ResponseWriter, ctx context.Context) {
+	w.Header().Set("API-Version", APIVersion)
+	if requestCtx := RequestContextFromContext(ctx); requestCtx != nil && requestCtx.IdempotencyKey != "" {
+		w.Header().Set("Idempotency-Key", requestCtx.IdempotencyKey)
+	}
+}
+
+func requireIdempotencyKey(r *http.Request) error {
+	requestCtx := RequestContextFromContext(r.Context())
+	if requestCtx != nil && requestCtx.IdempotencyKey != "" {
+		return nil
+	}
+	return errMissingIdempotencyKey
 }

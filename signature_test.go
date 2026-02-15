@@ -49,6 +49,7 @@ func TestSignatureMiddleware(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Idempotency-Key", "idem-test")
 		req.Header.Set("Signature", signature)
 		req.Header.Set("Timestamp", ts.Format(time.RFC3339Nano))
 		rec := httptest.NewRecorder()
@@ -76,6 +77,7 @@ func TestSignatureMiddleware(t *testing.T) {
 		body := []byte(`{"line_items":[{"id":"sku_1"}],"currency":"usd"}`)
 		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Idempotency-Key", "idem-test")
 		req.Header.Set("Signature", "bogus")
 		req.Header.Set("Timestamp", ts.Format(time.RFC3339Nano))
 		rec := httptest.NewRecorder()
@@ -109,6 +111,7 @@ func TestSignatureMiddleware(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Idempotency-Key", "idem-test")
 		req.Header.Set("Signature", signature)
 		req.Header.Set("Timestamp", ts.Format(time.RFC3339Nano))
 		rec := httptest.NewRecorder()
