@@ -6,10 +6,10 @@ import (
 )
 
 // Feed is a collection of products n the ACP product feed.
-type Feed []Product
+type Feed []*Product
 
 // New creates new feed from a list of products.
-func New(products []Product) Feed {
+func New(products []*Product) Feed {
 	return Feed(products)
 }
 
@@ -278,7 +278,7 @@ type Product struct {
 
 	// GeoPrice lists country-specific prices using ISO 3166-1 country codes.
 	//
-	// Example: 79.99 USD (California)
+	// Example: 79.99 EUR (California)
 	GeoPrice []string `json:"geo_price,omitempty" csv:"geo_price"`
 	// GeoAvailability lists country-specific availability using ISO 3166-1 country codes.
 	//

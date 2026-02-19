@@ -2,21 +2,26 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/sumup/acp"
+	"github.com/sumup/acp/feed"
 )
 
 func main() {
-	service := newMemoryService("USD", defaultCatalog())
+	currency, catalog := defaultFeedCatalog()
+	service := newMemoryService(currency, catalog)
 	addr := ":8080"
 
 	opts := []acp.Option{acp.WithMiddleware(logging, cors)}
@@ -114,6 +119,115 @@ func defaultCatalog() []product {
 		{SKU: "beans", Title: "Espresso Beans (1kg)", Price: 2400, TaxRate: 0.00},
 		{SKU: "mug", Title: "Stoneware Mug", Price: 1500, TaxRate: 0.07},
 	}
+}
+
+func defaultFeedCatalog() (string, []product) {
+	path, err := resolveDefaultFeedPath()
+	if err != nil {
+		log.Printf("feed disabled: %v; using built-in catalog", err)
+		return "EUR", defaultCatalog()
+	}
+
+	currency, catalog, err := loadCatalogFromJSONL(path)
+	if err != nil {
+		log.Printf("feed %s could not be loaded: %v; using built-in catalog", path, err)
+		return "EUR", defaultCatalog()
+	}
+	log.Printf("loaded %d products from %s", len(catalog), path)
+	return currency, catalog
+}
+
+func resolveDefaultFeedPath() (string, error) {
+	candidates := []string{
+		filepath.Join("feed", "testdata", "feed.jsonl"),
+		filepath.Join("..", "..", "feed", "testdata", "feed.jsonl"),
+	}
+
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("stat %s: %w", candidate, err)
+		}
+	}
+
+	return "", fmt.Errorf("default feed file not found; tried %s", strings.Join(candidates, ", "))
+}
+
+func loadCatalogFromJSONL(path string) (string, []product, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", nil, fmt.Errorf("open feed: %w", err)
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	products := make([]product, 0)
+	currency := ""
+
+	idx := 0
+	for row := range feed.JSONLReadSeq(file) {
+		if row.Err != nil {
+			return "", nil, fmt.Errorf("product %d: %w", idx, row.Err)
+		}
+		if row.Product == nil {
+			idx++
+			continue
+		}
+		rowProduct := row.Product
+		if !rowProduct.EnableCheckout {
+			idx++
+			continue
+		}
+		if strings.TrimSpace(rowProduct.ID) == "" || strings.TrimSpace(rowProduct.Title) == "" {
+			idx++
+			continue
+		}
+
+		cents, rowCurrency, err := parseFeedPrice(rowProduct.Price)
+		if err != nil {
+			return "", nil, fmt.Errorf("product %d (%s): %w", idx, rowProduct.ID, err)
+		}
+		if currency == "" {
+			currency = rowCurrency
+		}
+		if rowCurrency != currency {
+			return "", nil, fmt.Errorf("product %d (%s): mixed currencies %s and %s", idx, rowProduct.ID, currency, rowCurrency)
+		}
+
+		products = append(products, product{
+			SKU:     rowProduct.ID,
+			Title:   rowProduct.Title,
+			Price:   cents,
+			TaxRate: 0,
+		})
+		idx++
+	}
+	if len(products) == 0 {
+		return "", nil, fmt.Errorf("no checkout-enabled products found")
+	}
+
+	return currency, products, nil
+}
+
+func parseFeedPrice(value string) (int, string, error) {
+	parts := strings.Fields(strings.TrimSpace(value))
+	if len(parts) != 2 {
+		return 0, "", fmt.Errorf("invalid price format %q", value)
+	}
+
+	amount, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil {
+		return 0, "", fmt.Errorf("invalid price amount %q", parts[0])
+	}
+	cents := int(math.Round(amount * 100))
+	currency := strings.ToUpper(parts[1])
+	if currency == "" {
+		return 0, "", fmt.Errorf("missing currency code")
+	}
+
+	return cents, currency, nil
 }
 
 type sessionState struct {

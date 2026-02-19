@@ -4,56 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
-	"os"
-	"testing"
 )
 
-func TestWriteJSONLGz(t *testing.T) {
-	feed := sampleFeed()
-
-	var buf bytes.Buffer
-	if err := feed.WriteJSONLGz(&buf); err != nil {
-		t.Fatalf("write jsonl gzip: %v", err)
-	}
-
-	got, err := gunzipBytes(buf.Bytes())
-	if err != nil {
-		t.Fatalf("read jsonl gzip: %v", err)
-	}
-
-	want, err := os.ReadFile("testdata/feed.jsonl")
-	if err != nil {
-		t.Fatalf("read expected jsonl: %v", err)
-	}
-
-	if !bytes.Equal(got, want) {
-		t.Fatalf("jsonl output mismatch\nwant:\n%s\n\n got:\n%s", want, got)
-	}
-}
-
-func TestWriteCSVGz(t *testing.T) {
-	feed := sampleFeed()
-
-	var buf bytes.Buffer
-	if err := feed.WriteCSVGz(&buf); err != nil {
-		t.Fatalf("write csv gzip: %v", err)
-	}
-
-	got, err := gunzipBytes(buf.Bytes())
-	if err != nil {
-		t.Fatalf("read csv gzip: %v", err)
-	}
-
-	want, err := os.ReadFile("testdata/feed.csv")
-	if err != nil {
-		t.Fatalf("read expected csv: %v", err)
-	}
-
-	if !bytes.Equal(got, want) {
-		t.Fatalf("csv output mismatch\nwant:\n%s\n\n got:\n%s", want, got)
-	}
-}
-
+// gunzipBytes decompresses gzip payloads used in writer tests.
 func gunzipBytes(data []byte) ([]byte, error) {
 	reader, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
@@ -64,6 +17,7 @@ func gunzipBytes(data []byte) ([]byte, error) {
 	return io.ReadAll(reader)
 }
 
+// sampleFeed returns fixture data used across feed package tests.
 func sampleFeed() Feed {
 	inventory := 42
 	returnWindow := 30
@@ -101,8 +55,8 @@ func sampleFeed() Feed {
 			},
 			VideoLink:              "https://example.com/video/sku-1.mp4",
 			Model3DLink:            "https://example.com/model/sku-1.glb",
-			Price:                  "12.99 USD",
-			SalePrice:              "9.99 USD",
+			Price:                  "12.99 EUR",
+			SalePrice:              "9.99 EUR",
 			SalePriceEffectiveDate: "2026-01-01T00:00:00Z/2026-01-31T23:59:59Z",
 			UnitPricingMeasure:     "1 lb",
 			BaseMeasure:            "1 lb",
@@ -126,8 +80,8 @@ func sampleFeed() Feed {
 			CustomVariant3Category: "limited",
 			CustomVariant3Option:   "winter",
 			Shipping: []string{
-				"US:::5.00 USD",
-				"CA:::7.00 CAD",
+				"US:::5.00 EUR",
+				"CA:::7.00 EUR",
 			},
 			DeliveryEstimate:    "2026-01-20",
 			SellerName:          "SumUp Shop",
@@ -153,8 +107,8 @@ func sampleFeed() Feed {
 			},
 			RelationshipType: "accessory",
 			GeoPrice: []string{
-				"US:12.99 USD",
-				"CA:16.99 CAD",
+				"US:12.99 EUR",
+				"CA:16.99 EUR",
 			},
 			GeoAvailability: []string{
 				"US:in_stock",
@@ -170,7 +124,7 @@ func sampleFeed() Feed {
 			Link:             "https://example.com/p/sku-2",
 			ProductCategory:  "Home & Garden > Kitchen & Dining",
 			ImageLink:        "https://example.com/img/sku-2.jpg",
-			Price:            "24.00 USD",
+			Price:            "24.00 EUR",
 			Availability:     "preorder",
 			AvailabilityDate: "2026-02-01",
 			SellerName:       "SumUp Shop",

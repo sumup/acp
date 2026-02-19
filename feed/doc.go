@@ -23,7 +23,7 @@
 //	  		Link:            "https://store.example.com/products/sku_123",
 //	  		ProductCategory: "Apparel & Accessories > Clothing",
 //	  		ImageLink:       "https://store.example.com/images/sku_123.jpg",
-//	  		Price:           "19.00 USD",
+//	  		Price:           "19.00 EUR",
 //	  		Availability:    "in_stock",
 //	  		SellerName:      "Example Store",
 //	  		SellerURL:       "https://store.example.com",
@@ -37,7 +37,7 @@
 //	  		Link:            "https://store.example.com/products/sku_456",
 //	  		ProductCategory: "Apparel & Accessories > Bags",
 //	  		ImageLink:       "https://store.example.com/images/sku_456.jpg",
-//	  		Price:           "12.00 USD",
+//	  		Price:           "12.00 EUR",
 //	  		Availability:    "in_stock",
 //	  		SellerName:      "Example Store",
 //	  		SellerURL:       "https://store.example.com",
@@ -45,7 +45,11 @@
 //	  })
 //
 //		var buf bytes.Buffer
-//		err := feed.WriteJSONLGz(&buf)
+//		writer := NewJSONLGzWriter(&buf)
+//		for i := range feed {
+//			_ = writer.Write(feed[i])
+//		}
+//		_ = writer.Close()
 //
 // [ACP product feeds]: https://developers.openai.com/commerce/specs/feed
 package feed

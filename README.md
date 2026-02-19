@@ -33,7 +33,7 @@ curl -sS -X POST http://localhost:8080/checkout_sessions \
           {"id": "latte"},
           {"id": "mug"}
         ],
-        "currency": "USD",
+        "currency": "EUR",
         "buyer": {
           "first_name": "Ava",
           "last_name": "Agent",
@@ -88,7 +88,7 @@ curl -sS -X POST http://localhost:8080/agentic_commerce/delegate_payment \
         "allowance": {
           "reason": "one_time",
           "max_amount": 2000,
-          "currency": "usd",
+          "currency": "EUR",
           "checkout_session_id": "cs_000001",
           "merchant_id": "demo-merchant",
           "expires_at": "2025-12-31T23:59:59Z"

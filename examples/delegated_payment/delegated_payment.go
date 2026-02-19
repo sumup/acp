@@ -15,7 +15,7 @@ import (
 
 func main() {
 	service := newDelegatedMemoryService()
-	addr := ":8080"
+	addr := ":8081"
 
 	log.Printf("ACP delegated payment sample listening on %s", addr)
 	log.Printf("Try: curl -XPOST %s/agentic_commerce/delegate_payment -d @- <<'JSON' ...", "http://localhost:8080")
