@@ -2,806 +2,86 @@ package main
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log"
-	"math"
 	"net/http"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"sync"
-	"sync/atomic"
-	"time"
 
-	"github.com/sumup/acp"
-	"github.com/sumup/acp/feed"
+	"github.com/sumup/acp/agentic_checkout"
 )
 
-func main() {
-	currency, catalog := defaultFeedCatalog()
-	service := newMemoryService(currency, catalog)
-	addr := ":8080"
+type memoryService struct{}
 
-	opts := []acp.Option{acp.WithMiddleware(logging, cors)}
-	webhookOpts, err := webhookOptionsFromEnv()
-	if err != nil {
-		log.Fatalf("invalid webhook configuration: %v", err)
-	}
-
-	log.Printf("ACP sample server listening on %s", addr)
-	log.Printf("Try: curl -XPOST %s/checkout_sessions -d @- <<'JSON' ...", "http://localhost:8080")
-
-	handler := acp.NewCheckoutHandler(service, opts...)
-	if webhookOpts != nil {
-		ws, err := handler.GetWebhookSender(webhookOpts.Endpoint, webhookOpts.MerchantName, webhookOpts.Secret)
-		if err != nil {
-			panic(err)
-		}
-		service.enableWebhooks(ws)
-		log.Printf("Webhooks enabled; delivering to %s", webhookOpts.Endpoint)
-	} else {
-		log.Printf("Webhooks disabled; set ACP_WEBHOOK_ENDPOINT, ACP_WEBHOOK_HEADER, and ACP_WEBHOOK_SECRET to enable delivery")
-	}
-	log.Fatal(http.ListenAndServe(addr, handler))
-}
-
-type webhookOptions struct {
-	Endpoint     string
-	MerchantName string
-	Secret       []byte
-}
-
-func webhookOptionsFromEnv() (*webhookOptions, error) {
-	endpoint := strings.TrimSpace(os.Getenv("ACP_WEBHOOK_ENDPOINT"))
-	header := strings.TrimSpace(os.Getenv("ACP_WEBHOOK_HEADER"))
-	secret := os.Getenv("ACP_WEBHOOK_SECRET")
-
-	if endpoint == "" && header == "" && secret == "" {
-		return nil, nil
-	}
-	if endpoint == "" || header == "" || secret == "" {
-		return nil, fmt.Errorf("ACP_WEBHOOK_* variables must all be set to enable webhook delivery")
-	}
-	return &webhookOptions{
-		Endpoint:     endpoint,
-		MerchantName: header,
-		Secret:       []byte(secret),
+func (memoryService) CreateSession(_ context.Context, req agentic_checkout.CheckoutSessionCreateRequest) (*agentic_checkout.CheckoutSessionBase, error) {
+	return &agentic_checkout.CheckoutSessionBase{
+		Id:                 "cs_demo_1",
+		Currency:           req.Currency,
+		Capabilities:       req.Capabilities,
+		Status:             agentic_checkout.CheckoutSessionBaseStatusInProgress,
+		FulfillmentOptions: []agentic_checkout.CheckoutSessionBase_FulfillmentOptions_Item{},
+		LineItems:          []agentic_checkout.LineItem{},
+		Links:              []agentic_checkout.Link{},
+		Messages:           []agentic_checkout.CheckoutSessionBase_Messages_Item{},
 	}, nil
 }
 
-// logging adds basic request logs without external dependencies.
-func logging(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
-		next.ServeHTTP(rec, r)
-		log.Printf("%s %s -> %d (%s)", r.Method, r.URL.Path, rec.status, time.Since(start).Truncate(time.Millisecond))
-	}
+func (memoryService) UpdateSession(_ context.Context, id string, _ agentic_checkout.CheckoutSessionUpdateRequest) (*agentic_checkout.CheckoutSessionBase, error) {
+	return &agentic_checkout.CheckoutSessionBase{
+		Id:                 id,
+		Currency:           "USD",
+		Status:             agentic_checkout.CheckoutSessionBaseStatusInProgress,
+		FulfillmentOptions: []agentic_checkout.CheckoutSessionBase_FulfillmentOptions_Item{},
+		LineItems:          []agentic_checkout.LineItem{},
+		Links:              []agentic_checkout.Link{},
+		Messages:           []agentic_checkout.CheckoutSessionBase_Messages_Item{},
+	}, nil
 }
 
-// cors allows the browser-based testbed to call the sample server directly.
-func cors(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST,OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Accept,API-Version")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	}
+func (memoryService) GetSession(_ context.Context, id string) (*agentic_checkout.CheckoutSessionBase, error) {
+	return &agentic_checkout.CheckoutSessionBase{
+		Id:                 id,
+		Currency:           "USD",
+		Status:             agentic_checkout.CheckoutSessionBaseStatusReadyForPayment,
+		FulfillmentOptions: []agentic_checkout.CheckoutSessionBase_FulfillmentOptions_Item{},
+		LineItems:          []agentic_checkout.LineItem{},
+		Links:              []agentic_checkout.Link{},
+		Messages:           []agentic_checkout.CheckoutSessionBase_Messages_Item{},
+	}, nil
 }
 
-type statusRecorder struct {
-	http.ResponseWriter
-	status int
-}
-
-// WriteHeader captures the status code before forwarding to the real writer.
-func (r *statusRecorder) WriteHeader(code int) {
-	r.status = code
-	r.ResponseWriter.WriteHeader(code)
-}
-
-type product struct {
-	SKU     string
-	Title   string
-	Price   int
-	TaxRate float64
-}
-
-func defaultCatalog() []product {
-	return []product{
-		{SKU: "latte", Title: "Oat Milk Latte", Price: 650, TaxRate: 0.07},
-		{SKU: "beans", Title: "Espresso Beans (1kg)", Price: 2400, TaxRate: 0.00},
-		{SKU: "mug", Title: "Stoneware Mug", Price: 1500, TaxRate: 0.07},
-	}
-}
-
-func defaultFeedCatalog() (string, []product) {
-	path, err := resolveDefaultFeedPath()
-	if err != nil {
-		log.Printf("feed disabled: %v; using built-in catalog", err)
-		return "EUR", defaultCatalog()
-	}
-
-	currency, catalog, err := loadCatalogFromJSONL(path)
-	if err != nil {
-		log.Printf("feed %s could not be loaded: %v; using built-in catalog", path, err)
-		return "EUR", defaultCatalog()
-	}
-	log.Printf("loaded %d products from %s", len(catalog), path)
-	return currency, catalog
-}
-
-func resolveDefaultFeedPath() (string, error) {
-	candidates := []string{
-		filepath.Join("feed", "testdata", "feed.jsonl"),
-		filepath.Join("..", "..", "feed", "testdata", "feed.jsonl"),
-	}
-
-	for _, candidate := range candidates {
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate, nil
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return "", fmt.Errorf("stat %s: %w", candidate, err)
-		}
-	}
-
-	return "", fmt.Errorf("default feed file not found; tried %s", strings.Join(candidates, ", "))
-}
-
-func loadCatalogFromJSONL(path string) (string, []product, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return "", nil, fmt.Errorf("open feed: %w", err)
-	}
-	defer func() {
-		_ = file.Close()
-	}()
-
-	products := make([]product, 0)
-	currency := ""
-
-	idx := 0
-	for row := range feed.JSONLReadSeq(file) {
-		if row.Err != nil {
-			return "", nil, fmt.Errorf("product %d: %w", idx, row.Err)
-		}
-		if row.Product == nil {
-			idx++
-			continue
-		}
-		rowProduct := row.Product
-		if !rowProduct.EnableCheckout {
-			idx++
-			continue
-		}
-		if strings.TrimSpace(rowProduct.ID) == "" || strings.TrimSpace(rowProduct.Title) == "" {
-			idx++
-			continue
-		}
-
-		cents, rowCurrency, err := parseFeedPrice(rowProduct.Price)
-		if err != nil {
-			return "", nil, fmt.Errorf("product %d (%s): %w", idx, rowProduct.ID, err)
-		}
-		if currency == "" {
-			currency = rowCurrency
-		}
-		if rowCurrency != currency {
-			return "", nil, fmt.Errorf("product %d (%s): mixed currencies %s and %s", idx, rowProduct.ID, currency, rowCurrency)
-		}
-
-		products = append(products, product{
-			SKU:     rowProduct.ID,
-			Title:   rowProduct.Title,
-			Price:   cents,
-			TaxRate: 0,
-		})
-		idx++
-	}
-	if len(products) == 0 {
-		return "", nil, fmt.Errorf("no checkout-enabled products found")
-	}
-
-	return currency, products, nil
-}
-
-func parseFeedPrice(value string) (int, string, error) {
-	parts := strings.Fields(strings.TrimSpace(value))
-	if len(parts) != 2 {
-		return 0, "", fmt.Errorf("invalid price format %q", value)
-	}
-
-	amount, err := strconv.ParseFloat(parts[0], 64)
-	if err != nil {
-		return 0, "", fmt.Errorf("invalid price amount %q", parts[0])
-	}
-	cents := int(math.Round(amount * 100))
-	currency := strings.ToUpper(parts[1])
-	if currency == "" {
-		return 0, "", fmt.Errorf("missing currency code")
-	}
-
-	return cents, currency, nil
-}
-
-type sessionState struct {
-	session *acp.CheckoutSession
-	order   *acp.Order
-}
-
-type memoryService struct {
-	mu        sync.RWMutex
-	currency  string
-	catalog   map[string]product
-	sessions  map[string]*sessionState
-	sessionID uint64
-	orderID   uint64
-	webhook   acp.WebhookSender
-}
-
-func newMemoryService(currency string, catalog []product) *memoryService {
-	index := make(map[string]product, len(catalog))
-	for _, p := range catalog {
-		index[p.SKU] = p
-	}
-	return &memoryService{
-		currency: strings.ToUpper(currency),
-		catalog:  index,
-		sessions: make(map[string]*sessionState),
-	}
-}
-
-// CreateSession builds a new checkout session with default data.
-func (s *memoryService) CreateSession(ctx context.Context, req acp.CheckoutSessionCreateRequest) (*acp.CheckoutSession, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	currency := strings.ToUpper(req.Currency)
-	if currency != s.currency {
-		return nil, acp.NewHTTPError(http.StatusBadRequest, acp.InvalidRequest, acp.ErrorCode("currency_mismatch"), "unsupported currency")
-	}
-
-	session := &acp.CheckoutSession{
-		ID:                 s.nextSessionID(),
-		Currency:           currency,
-		Buyer:              cloneBuyer(req.Buyer),
-		FulfillmentDetails: cloneFulfillmentDetails(req.FulfillmentDetails),
-		FulfillmentOptions: defaultFulfillmentOptions(currency),
-		Messages:           defaultMessages(),
-		Links: []acp.Link{
-			{Type: acp.PrivacyPolicy, Url: "https://merchant.example/privacy"},
-			{Type: acp.TermsOfUse, Url: "https://merchant.example/terms"},
+func (memoryService) CompleteSession(_ context.Context, id string, _ agentic_checkout.CheckoutSessionCompleteRequest) (agentic_checkout.CheckoutSessionWithOrder, error) {
+	return agentic_checkout.CheckoutSessionWithOrder{
+		Id:                 id,
+		Currency:           "USD",
+		Capabilities:       agentic_checkout.Capabilities{},
+		FulfillmentOptions: []agentic_checkout.CheckoutSessionWithOrder_FulfillmentOptions_Item{},
+		LineItems:          []agentic_checkout.LineItem{},
+		Links:              []agentic_checkout.Link{},
+		Messages:           []agentic_checkout.CheckoutSessionWithOrder_Messages_Item{},
+		Status:             agentic_checkout.CheckoutSessionWithOrderStatusCompleted,
+		Totals:             []agentic_checkout.Total{},
+		Order: agentic_checkout.Order{
+			Id:                "ord_demo_1",
+			CheckoutSessionId: id,
+			PermalinkUrl:      "https://example.com/orders/ord_demo_1",
 		},
-		PaymentProvider: &acp.PaymentProvider{
-			Provider: "sumup",
-			SupportedPaymentMethods: []acp.PaymentMethod{
-				{
-					Type: acp.PaymentMethodTypeCard,
-					SupportedCardNetworks: []acp.PaymentCardNetwork{
-						acp.PaymentCardNetworkAmex,
-						acp.PaymentCardNetworkDiscover,
-						acp.PaymentCardNetworkMastercard,
-						acp.PaymentCardNetworkVisa,
-					},
-				},
-			},
-		},
-	}
-
-	if err := s.rebuildFinancials(session, req.LineItems); err != nil {
-		return nil, err
-	}
-	session.Status = deriveStatus(session)
-
-	state := &sessionState{session: session}
-	s.sessions[session.ID] = state
-	return cloneSession(session), nil
+	}, nil
 }
 
-// UpdateSession refreshes an existing session with the provided fields.
-func (s *memoryService) UpdateSession(ctx context.Context, id string, req acp.CheckoutSessionUpdateRequest) (*acp.CheckoutSession, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	state, ok := s.sessions[id]
-	if !ok {
-		return nil, acp.NewHTTPError(http.StatusNotFound, acp.InvalidRequest, acp.ErrorCode("not_found"), "checkout session not found")
-	}
-
-	session := state.session
-	if req.Buyer != nil {
-		session.Buyer = cloneBuyer(req.Buyer)
-	}
-	if req.FulfillmentDetails != nil {
-		session.FulfillmentDetails = cloneFulfillmentDetails(req.FulfillmentDetails)
-	}
-	if req.LineItems != nil {
-		if err := s.rebuildFinancials(session, *req.LineItems); err != nil {
-			return nil, err
-		}
-	}
-	session.Status = deriveStatus(session)
-	return cloneSession(session), nil
+func (memoryService) CancelSession(_ context.Context, id string, _ *agentic_checkout.CancelSessionRequest) (*agentic_checkout.CheckoutSessionBase, error) {
+	return &agentic_checkout.CheckoutSessionBase{
+		Id:                 id,
+		Currency:           "USD",
+		Status:             agentic_checkout.CheckoutSessionBaseStatusCanceled,
+		FulfillmentOptions: []agentic_checkout.CheckoutSessionBase_FulfillmentOptions_Item{},
+		LineItems:          []agentic_checkout.LineItem{},
+		Links:              []agentic_checkout.Link{},
+		Messages:           []agentic_checkout.CheckoutSessionBase_Messages_Item{},
+	}, nil
 }
 
-// GetSession returns the current copy of a stored session.
-func (s *memoryService) GetSession(ctx context.Context, id string) (*acp.CheckoutSession, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	state, ok := s.sessions[id]
-	if !ok {
-		return nil, acp.NewHTTPError(http.StatusNotFound, acp.InvalidRequest, acp.ErrorCode("not_found"), "checkout session not found")
+func main() {
+	handler := agentic_checkout.NewCheckoutHandler(memoryService{})
+	log.Println("checkout example listening on :8080")
+	if err := http.ListenAndServe(":8080", handler); err != nil {
+		log.Fatal(err)
 	}
-	return cloneSession(state.session), nil
-}
-
-// CompleteSession marks a session as completed and emits a mock order.
-func (s *memoryService) CompleteSession(ctx context.Context, id string, req acp.CheckoutSessionCompleteRequest) (*acp.SessionWithOrder, error) {
-	s.mu.Lock()
-	var event acp.EventData
-	defer func() {
-		s.mu.Unlock()
-		if s.webhook == nil || event == nil {
-			return
-		}
-		if err := s.webhook.Send(ctx, event); err != nil {
-			log.Printf("webhook delivery failed: %v", err)
-		}
-	}()
-
-	state, ok := s.sessions[id]
-	if !ok {
-		return nil, acp.NewHTTPError(http.StatusNotFound, acp.InvalidRequest, acp.ErrorCode("not_found"), "checkout session not found")
-	}
-	session := state.session
-	if session.Status == acp.CheckoutSessionStatusCanceled {
-		return nil, acp.NewHTTPError(http.StatusConflict, acp.InvalidRequest, acp.ErrorCode("canceled"), "cannot complete a canceled session")
-	}
-	if len(session.LineItems) == 0 {
-		return nil, acp.NewHTTPError(http.StatusBadRequest, acp.InvalidRequest, acp.ErrorCode("empty_cart"), "add items before completing the session")
-	}
-	if state.order != nil {
-		return state.toOrderSession(), nil
-	}
-
-	session.Status = acp.CheckoutSessionStatusCompleted
-	order := &acp.Order{
-		ID:                s.nextOrderID(),
-		CheckoutSessionId: session.ID,
-		PermalinkUrl:      fmt.Sprintf("https://merchant.example/orders/%s", session.ID),
-	}
-	state.order = order
-
-	event = acp.OrderCreate{
-		Type:              acp.EventDataTypeOrder,
-		CheckoutSessionID: session.ID,
-		PermalinkURL:      order.PermalinkUrl,
-		Status:            acp.OrderStatusCreated,
-	}
-
-	return state.toOrderSession(), nil
-}
-
-// CancelSession marks a session as canceled unless it already has an order.
-func (s *memoryService) CancelSession(ctx context.Context, id string, req *acp.CancelSessionRequest) (*acp.CheckoutSession, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	state, ok := s.sessions[id]
-	if !ok {
-		return nil, acp.NewHTTPError(http.StatusNotFound, acp.InvalidRequest, acp.ErrorCode("not_found"), "checkout session not found")
-	}
-	if state.order != nil {
-		return nil, acp.NewHTTPError(http.StatusConflict, acp.InvalidRequest, acp.ErrorCode("completed"), "completed sessions cannot be canceled")
-	}
-
-	state.session.Status = acp.CheckoutSessionStatusCanceled
-	return cloneSession(state.session), nil
-}
-
-func (s *memoryService) rebuildFinancials(session *acp.CheckoutSession, items []acp.Item) error {
-	lines, err := s.buildLineItems(items)
-	if err != nil {
-		return err
-	}
-	session.LineItems = lines
-	session.Totals = buildTotals(lines, session.Currency)
-	session.Messages = defaultMessages()
-	return nil
-}
-
-func (s *memoryService) buildLineItems(items []acp.Item) ([]acp.LineItem, error) {
-	if len(items) == 0 {
-		return nil, acp.NewHTTPError(http.StatusBadRequest, acp.InvalidRequest, acp.ErrorCode(acp.InvalidRequest), "line_items cannot be empty")
-	}
-
-	lines := make([]acp.LineItem, 0, len(items))
-	for idx, item := range items {
-		product, ok := s.catalog[item.ID]
-		if !ok {
-			return nil, acp.NewHTTPError(http.StatusBadRequest, acp.InvalidRequest, acp.ErrorCode("unknown_item"), fmt.Sprintf("line_items[%d]: %q is not sold by this merchant", idx, item.ID))
-		}
-		quantity := 1
-		unitAmount := product.Price
-		if item.UnitAmount != nil {
-			unitAmount = *item.UnitAmount
-		}
-		name := product.Title
-		if item.Name != nil && strings.TrimSpace(*item.Name) != "" {
-			name = *item.Name
-		}
-		base := unitAmount * quantity
-		discount := 0
-		subtotal := base - discount
-		tax := int(math.Round(product.TaxRate * float64(subtotal)))
-		total := subtotal + tax
-		lineTotals := []acp.Total{
-			{Type: acp.TotalTypeItemsBaseAmount, Amount: base, DisplayText: formatMoney(s.currency, base)},
-		}
-		if discount > 0 {
-			lineTotals = append(lineTotals, acp.Total{
-				Type:        acp.TotalTypeItemsDiscount,
-				Amount:      discount,
-				DisplayText: formatMoney(s.currency, discount),
-			})
-		}
-		lineTotals = append(lineTotals, acp.Total{
-			Type:        acp.TotalTypeSubtotal,
-			Amount:      subtotal,
-			DisplayText: formatMoney(s.currency, subtotal),
-		})
-		if tax > 0 {
-			lineTotals = append(lineTotals, acp.Total{
-				Type:        acp.TotalTypeTax,
-				Amount:      tax,
-				DisplayText: formatMoney(s.currency, tax),
-			})
-		}
-		lineTotals = append(lineTotals, acp.Total{
-			Type:        acp.TotalTypeTotal,
-			Amount:      total,
-			DisplayText: formatMoney(s.currency, total),
-		})
-		itemCopy := item
-		itemCopy.Name = &name
-		itemCopy.UnitAmount = &unitAmount
-		lines = append(lines, acp.LineItem{
-			ID:         fmt.Sprintf("li_%s_%d", item.ID, idx),
-			Item:       itemCopy,
-			Quantity:   quantity,
-			Name:       &name,
-			UnitAmount: &unitAmount,
-			Totals:     lineTotals,
-		})
-	}
-	return lines, nil
-}
-
-func (s *memoryService) nextSessionID() string {
-	id := atomic.AddUint64(&s.sessionID, 1)
-	return fmt.Sprintf("cs_%06d", id)
-}
-
-func (s *memoryService) nextOrderID() string {
-	id := atomic.AddUint64(&s.orderID, 1)
-	return fmt.Sprintf("ord_%06d", id)
-}
-
-func deriveStatus(session *acp.CheckoutSession) acp.CheckoutSessionStatus {
-	switch {
-	case session.Status == acp.CheckoutSessionStatusCanceled:
-		return acp.CheckoutSessionStatusCanceled
-	case session.Status == acp.CheckoutSessionStatusCompleted:
-		return acp.CheckoutSessionStatusCompleted
-	case len(session.LineItems) == 0:
-		return acp.CheckoutSessionStatusInProgress
-	case session.PaymentProvider != nil:
-		return acp.CheckoutSessionStatusReadyForPayment
-	default:
-		return acp.CheckoutSessionStatusNotReadyForPayment
-	}
-}
-
-func buildTotals(lines []acp.LineItem, currency string) []acp.Total {
-	var (
-		itemsBase     int
-		itemsDiscount int
-		subtotal      int
-		tax           int
-		total         int
-	)
-	for _, line := range lines {
-		itemsBase += totalAmount(line.Totals, acp.TotalTypeItemsBaseAmount)
-		itemsDiscount += totalAmount(line.Totals, acp.TotalTypeItemsDiscount)
-		subtotal += totalAmount(line.Totals, acp.TotalTypeSubtotal)
-		tax += totalAmount(line.Totals, acp.TotalTypeTax)
-		total += totalAmount(line.Totals, acp.TotalTypeTotal)
-	}
-
-	totals := []acp.Total{
-		{Type: acp.TotalTypeItemsBaseAmount, Amount: itemsBase, DisplayText: formatMoney(currency, itemsBase)},
-	}
-	if itemsDiscount > 0 {
-		totals = append(totals, acp.Total{
-			Type:        acp.TotalTypeItemsDiscount,
-			Amount:      itemsDiscount,
-			DisplayText: formatMoney(currency, itemsDiscount),
-		})
-	}
-	if subtotal > 0 {
-		totals = append(totals, acp.Total{
-			Type:        acp.TotalTypeSubtotal,
-			Amount:      subtotal,
-			DisplayText: formatMoney(currency, subtotal),
-		})
-	}
-	if tax > 0 {
-		totals = append(totals, acp.Total{
-			Type:        acp.TotalTypeTax,
-			Amount:      tax,
-			DisplayText: formatMoney(currency, tax),
-		})
-	}
-	totals = append(totals, acp.Total{
-		Type:        acp.TotalTypeTotal,
-		Amount:      total,
-		DisplayText: formatMoney(currency, total),
-	})
-	return totals
-}
-
-func totalAmount(totals []acp.Total, totalType acp.TotalType) int {
-	for _, total := range totals {
-		if total.Type == totalType {
-			return total.Amount
-		}
-	}
-	return 0
-}
-
-func formatMoney(currency string, cents int) string {
-	value := float64(cents) / 100
-	return fmt.Sprintf("%s %.2f", currency, value)
-}
-
-func defaultMessages() []acp.Message {
-	info := acp.MessageInfo{
-		Type:        "info",
-		Content:     "This sample server keeps sessions in memory. Restarting the process wipes the cart.",
-		ContentType: acp.MessageInfoContentTypePlain,
-	}
-	var msg acp.Message
-	_ = msg.FromMessageInfo(info)
-	return []acp.Message{msg}
-}
-
-func defaultFulfillmentOptions(currency string) []acp.FulfillmentOption {
-	soon := time.Now().Add(48 * time.Hour)
-	later := soon.Add(24 * time.Hour)
-	shipping := acp.FulfillmentOptionShipping{
-		ID:          "ship_standard",
-		Title:       "Standard Shipping",
-		Description: ptr("2-4 business days"),
-		Totals: []acp.Total{
-			{Type: acp.TotalTypeFulfillment, Amount: 500, DisplayText: formatMoney(currency, 500)},
-			{Type: acp.TotalTypeTotal, Amount: 500, DisplayText: formatMoney(currency, 500)},
-		},
-		Type:                 "shipping",
-		EarliestDeliveryTime: &soon,
-		LatestDeliveryTime:   &later,
-	}
-	digital := acp.FulfillmentOptionDigital{
-		ID:          "pickup",
-		Title:       "In-store pickup",
-		Description: ptr("Collect in person"),
-		Totals: []acp.Total{
-			{Type: acp.TotalTypeTotal, Amount: 0, DisplayText: formatMoney(currency, 0)},
-		},
-		Type: "digital",
-	}
-
-	opts := make([]acp.FulfillmentOption, 0, 2)
-	var shippingUnion acp.FulfillmentOption
-	_ = shippingUnion.FromFulfillmentOptionShipping(shipping)
-	opts = append(opts, shippingUnion)
-
-	var digitalUnion acp.FulfillmentOption
-	_ = digitalUnion.FromFulfillmentOptionDigital(digital)
-	opts = append(opts, digitalUnion)
-
-	return opts
-}
-
-func ptr[V any](v V) *V {
-	return &v
-}
-
-func cloneBuyer(b *acp.Buyer) *acp.Buyer {
-	if b == nil {
-		return nil
-	}
-	copy := *b
-	return &copy
-}
-
-func cloneAddress(a *acp.Address) *acp.Address {
-	if a == nil {
-		return nil
-	}
-	copy := *a
-	return &copy
-}
-
-func cloneFulfillmentDetails(d *acp.FulfillmentDetails) *acp.FulfillmentDetails {
-	if d == nil {
-		return nil
-	}
-	copy := *d
-	copy.Address = cloneAddress(d.Address)
-	return &copy
-}
-
-func clonePaymentProvider(p *acp.PaymentProvider) *acp.PaymentProvider {
-	if p == nil {
-		return nil
-	}
-	copy := *p
-	if p.SupportedPaymentMethods != nil {
-		copy.SupportedPaymentMethods = make([]acp.PaymentMethod, len(p.SupportedPaymentMethods))
-		for i, method := range p.SupportedPaymentMethods {
-			methodCopy := method
-			if method.SupportedCardNetworks != nil {
-				methodCopy.SupportedCardNetworks = append([]acp.PaymentCardNetwork(nil), method.SupportedCardNetworks...)
-			}
-			copy.SupportedPaymentMethods[i] = methodCopy
-		}
-	}
-	return &copy
-}
-
-func cloneLineItems(src []acp.LineItem) []acp.LineItem {
-	if len(src) == 0 {
-		return nil
-	}
-	dst := make([]acp.LineItem, len(src))
-	for i, line := range src {
-		copyLine := line
-		if line.Images != nil {
-			copyLine.Images = append([]string(nil), line.Images...)
-		}
-		if line.Tags != nil {
-			copyLine.Tags = append([]string(nil), line.Tags...)
-		}
-		if line.VariantOptions != nil {
-			copyLine.VariantOptions = append([]acp.VariantOption(nil), line.VariantOptions...)
-		}
-		if line.DiscountDetails != nil {
-			copyLine.DiscountDetails = append([]acp.DiscountDetail(nil), line.DiscountDetails...)
-		}
-		if line.CustomAttributes != nil {
-			copyLine.CustomAttributes = append([]acp.CustomAttribute(nil), line.CustomAttributes...)
-		}
-		if line.Disclosures != nil {
-			copyLine.Disclosures = append([]acp.Disclosure(nil), line.Disclosures...)
-		}
-		if line.Totals != nil {
-			copyLine.Totals = append([]acp.Total(nil), line.Totals...)
-		}
-		dst[i] = copyLine
-	}
-	return dst
-}
-
-func cloneTotals(src []acp.Total) []acp.Total {
-	if len(src) == 0 {
-		return nil
-	}
-	dst := make([]acp.Total, len(src))
-	copy(dst, src)
-	return dst
-}
-
-func cloneLinks(src []acp.Link) []acp.Link {
-	if len(src) == 0 {
-		return nil
-	}
-	dst := make([]acp.Link, len(src))
-	copy(dst, src)
-	return dst
-}
-
-func cloneSession(src *acp.CheckoutSession) *acp.CheckoutSession {
-	if src == nil {
-		return nil
-	}
-	dst := *src
-	dst.Buyer = cloneBuyer(src.Buyer)
-	dst.FulfillmentDetails = cloneFulfillmentDetails(src.FulfillmentDetails)
-	dst.PaymentProvider = clonePaymentProvider(src.PaymentProvider)
-	dst.LineItems = cloneLineItems(src.LineItems)
-	dst.Totals = cloneTotals(src.Totals)
-	dst.Links = cloneLinks(src.Links)
-	dst.FulfillmentOptions = append([]acp.FulfillmentOption(nil), src.FulfillmentOptions...)
-	dst.Messages = append([]acp.Message(nil), src.Messages...)
-	if src.SelectedFulfillmentOptions != nil {
-		dst.SelectedFulfillmentOptions = append([]acp.SelectedFulfillmentOptions(nil), src.SelectedFulfillmentOptions...)
-	}
-	if src.FulfillmentGroups != nil {
-		dst.FulfillmentGroups = append([]acp.FulfillmentGroup(nil), src.FulfillmentGroups...)
-	}
-	if src.AvailablePromotions != nil {
-		dst.AvailablePromotions = append([]acp.AvailablePromotion(nil), src.AvailablePromotions...)
-	}
-	if src.Metadata != nil {
-		dst.Metadata = make(map[string]any, len(src.Metadata))
-		for key, value := range src.Metadata {
-			dst.Metadata[key] = value
-		}
-	}
-	return &dst
-}
-
-func convertFulfillmentOptions(src []acp.FulfillmentOption) []acp.FulfillmentOption {
-	if len(src) == 0 {
-		return nil
-	}
-	dst := make([]acp.FulfillmentOption, len(src))
-	for i := range src {
-		data, err := src[i].MarshalJSON()
-		if err != nil {
-			continue
-		}
-		_ = dst[i].UnmarshalJSON(data)
-	}
-	return dst
-}
-
-func convertMessages(src []acp.Message) []acp.Message {
-	if len(src) == 0 {
-		return nil
-	}
-	dst := make([]acp.Message, len(src))
-	for i := range src {
-		data, err := src[i].MarshalJSON()
-		if err != nil {
-			continue
-		}
-		_ = dst[i].UnmarshalJSON(data)
-	}
-	return dst
-}
-
-func (s *sessionState) toOrderSession() *acp.SessionWithOrder {
-	order := &acp.SessionWithOrder{
-		CheckoutSession: acp.CheckoutSession{
-			ID:                         s.session.ID,
-			Buyer:                      cloneBuyer(s.session.Buyer),
-			Currency:                   s.session.Currency,
-			FulfillmentDetails:         cloneFulfillmentDetails(s.session.FulfillmentDetails),
-			FulfillmentOptions:         convertFulfillmentOptions(s.session.FulfillmentOptions),
-			SelectedFulfillmentOptions: append([]acp.SelectedFulfillmentOptions(nil), s.session.SelectedFulfillmentOptions...),
-			FulfillmentGroups:          append([]acp.FulfillmentGroup(nil), s.session.FulfillmentGroups...),
-			LineItems:                  cloneLineItems(s.session.LineItems),
-			Links:                      cloneLinks(s.session.Links),
-			Messages:                   convertMessages(s.session.Messages),
-			PaymentProvider:            clonePaymentProvider(s.session.PaymentProvider),
-			Status:                     acp.CheckoutSessionStatusCompleted,
-			Totals:                     cloneTotals(s.session.Totals),
-		},
-		Order: *s.order,
-	}
-	return order
-}
-
-func (s *memoryService) enableWebhooks(sender acp.WebhookSender) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.webhook = sender
 }

@@ -2,121 +2,56 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"maps"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/sumup/acp"
+	"github.com/sumup/acp/delegate_payment"
 )
 
-func main() {
-	service := newDelegatedMemoryService()
-	addr := ":8081"
-
-	log.Printf("ACP delegated payment sample listening on %s", addr)
-	log.Printf("Try: curl -XPOST %s/agentic_commerce/delegate_payment -d @- <<'JSON' ...", "http://localhost:8080")
-
-	handler := acp.NewDelegatedPaymentHandler(service, acp.WithMiddleware(logging, cors))
-	log.Fatal(http.ListenAndServe(addr, handler))
-}
-
-// logging adds basic request logs without external dependencies.
-func logging(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
-		next.ServeHTTP(rec, r)
-		log.Printf("%s %s -> %d (%s)", r.Method, r.URL.Path, rec.status, time.Since(start).Truncate(time.Millisecond))
-	}
-}
-
-// cors allows the browser-based testbed to call the sample server directly.
-func cors(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST,OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Accept,API-Version")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	}
-}
-
-type statusRecorder struct {
-	http.ResponseWriter
-	status int
-}
-
-// WriteHeader captures the status code before forwarding to the real writer.
-func (r *statusRecorder) WriteHeader(code int) {
-	r.status = code
-	r.ResponseWriter.WriteHeader(code)
-}
-
 type delegatedMemoryService struct {
-	mu      sync.Mutex
-	tokens  map[string]*acp.VaultToken
-	tokenID uint64
+	mu     sync.Mutex
+	tokens map[string]*delegate_payment.DelegatePaymentResponse
 }
 
-func newDelegatedMemoryService() *delegatedMemoryService {
-	return &delegatedMemoryService{
-		tokens: make(map[string]*acp.VaultToken),
-	}
+func newService() *delegatedMemoryService {
+	return &delegatedMemoryService{tokens: map[string]*delegate_payment.DelegatePaymentResponse{}}
 }
 
-// DelegatePayment issues idempotent tokens keyed by checkout_session_id.
-func (s *delegatedMemoryService) DelegatePayment(_ context.Context, req acp.PaymentRequest) (*acp.VaultToken, error) {
+func (s *delegatedMemoryService) DelegatePayment(_ context.Context, req delegate_payment.DelegatePaymentRequest) (*delegate_payment.DelegatePaymentResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	key := req.Allowance.CheckoutSessionID
-	if token, ok := s.tokens[key]; ok {
-		return cloneVaultToken(token), nil
+	key := req.Allowance.CheckoutSessionId
+	if tok, ok := s.tokens[key]; ok {
+		return &delegate_payment.DelegatePaymentResponse{Id: tok.Id, Created: tok.Created, Metadata: cloneMap(tok.Metadata)}, nil
 	}
 
-	metadata := cloneStringMap(req.Metadata)
-	if metadata == nil {
-		metadata = make(map[string]string, 2)
+	resp := &delegate_payment.DelegatePaymentResponse{
+		Id:      "vt_demo_1",
+		Created: time.Now().UTC(),
+		Metadata: map[string]string{
+			"merchant_id": req.Allowance.MerchantId,
+			"source":      "example",
+		},
 	}
-	metadata["merchant_id"] = req.Allowance.MerchantID
-	metadata["checkout_session_id"] = key
-
-	token := &acp.VaultToken{
-		ID:       s.nextTokenID(),
-		Created:  time.Now().UTC(),
-		Metadata: metadata,
-	}
-
-	s.tokens[key] = token
-	return cloneVaultToken(token), nil
+	s.tokens[key] = resp
+	return &delegate_payment.DelegatePaymentResponse{Id: resp.Id, Created: resp.Created, Metadata: cloneMap(resp.Metadata)}, nil
 }
 
-func (s *delegatedMemoryService) nextTokenID() string {
-	id := atomic.AddUint64(&s.tokenID, 1)
-	return fmt.Sprintf("vt_%06d", id)
+func cloneMap(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }
 
-func cloneVaultToken(src *acp.VaultToken) *acp.VaultToken {
-	if src == nil {
-		return nil
+func main() {
+	handler := delegate_payment.NewDelegatedPaymentHandler(newService())
+	log.Println("delegated payment example listening on :8080")
+	if err := http.ListenAndServe(":8080", handler); err != nil {
+		log.Fatal(err)
 	}
-	dst := *src
-	dst.Metadata = cloneStringMap(src.Metadata)
-	return &dst
-}
-
-func cloneStringMap(src map[string]string) map[string]string {
-	if len(src) == 0 {
-		return nil
-	}
-	dst := make(map[string]string, len(src))
-	maps.Copy(dst, src)
-	return dst
 }

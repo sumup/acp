@@ -1,4 +1,4 @@
-package acp
+package agentic_checkout
 
 import (
 	"bytes"
@@ -32,25 +32,9 @@ const (
 	EventDataTypeOrder EventDataType = "order"
 )
 
-// OrderStatus defines model for webhook data status.
-type OrderStatus = CheckoutOrderStatus
-
-const (
-	// OrderStatusCreated indicates a newly created order.
-	OrderStatusCreated OrderStatus = CheckoutOrderStatusCreated
-	// OrderStatusConfirmed indicates order acceptance/confirmation.
-	OrderStatusConfirmed OrderStatus = CheckoutOrderStatusConfirmed
-	// OrderStatusManualReview indicates manual review is required.
-	OrderStatusManualReview OrderStatus = CheckoutOrderStatusManualReview
-	// OrderStatusProcessing indicates post-checkout processing has started.
-	OrderStatusProcessing OrderStatus = CheckoutOrderStatusProcessing
-	// OrderStatusShipped indicates the order has been shipped.
-	OrderStatusShipped OrderStatus = CheckoutOrderStatusShipped
-	// OrderStatusDelivered indicates fulfillment has completed.
-	OrderStatusDelivered OrderStatus = CheckoutOrderStatusDelivered
-	// OrderStatusCanceled indicates the order was canceled.
-	OrderStatusCanceled OrderStatus = CheckoutOrderStatusCanceled
-)
+type OrderLineItem map[string]any
+type Fulfillment map[string]any
+type Adjustment map[string]any
 
 // EventData is implemented by webhook payloads.
 type EventData interface {
@@ -201,7 +185,7 @@ func (s *webhookSender) Send(ctx context.Context, data EventData) error {
 		return fmt.Errorf("checkout: build webhook request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("API-Version", APIVersion)
+	req.Header.Set("API-Version", apiVersionHeaderValue)
 	req.Header.Set(s.signatureHeader, signWebhookPayload(s.secret, body))
 
 	resp, err := s.client.Do(req)

@@ -1,0 +1,6 @@
+package: agentic_checkout
+output: agentic_checkout_gen.go
+generate:
+  models: true
+output-options:
+  skip-prune: true

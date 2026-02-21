@@ -1,0 +1,6 @@
+package: delegate_payment
+output: delegate_payment_gen.go
+generate:
+  models: true
+output-options:
+  skip-prune: true
