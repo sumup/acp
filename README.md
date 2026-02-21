@@ -8,7 +8,7 @@
 
 </div>
 
-Go SDK for the [Agentic Commerce Protocol](https://developers.openai.com/commerce) (ACP). `github.com/sumup/acr` supports [Agentic Checkout](https://developers.openai.com/commerce/specs/checkout), [Delegated Payment](https://developers.openai.com/commerce/specs/payment), and [Product Feeds](https://developers.openai.com/commerce/specs/feed).
+Go SDK for the [Agentic Commerce Protocol](https://developers.openai.com/commerce) (ACP). `github.com/sumup/acp` supports [Agentic Checkout](https://developers.openai.com/commerce/specs/checkout), [Delegated Payment](https://developers.openai.com/commerce/specs/payment), and [Product Feeds](https://developers.openai.com/commerce/specs/feed).
 
 ## Examples
 
