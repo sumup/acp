@@ -3,26 +3,8 @@ name: CI
 on:
   push:
     branches: [main]
-    paths:
-      - '**.go'
-      - go.mod
-      - go.sum
-      - internal/**
-      - checkout/**
-      - delegatedpayment/**
-      - examples/**
-      - .github/workflows/ci.yml
   pull_request:
     branches: [main]
-    paths:
-      - '**.go'
-      - go.mod
-      - go.sum
-      - internal/**
-      - checkout/**
-      - delegatedpayment/**
-      - examples/**
-      - .github/workflows/ci.yml
 
 env:
   GOLANGCI_LINT_VERSION: v2.5.0

@@ -6,28 +6,29 @@ import (
 	"strings"
 )
 
+// RequestContext caries the standard ACP headers.
 type RequestContext struct {
-	// API Key used to make requests
+	// API Key used to make requests.
 	//
 	// Example: Bearer api_key_123
 	Authorization string
-	// The preferred locale for content like messages and errors
+	// The preferred locale for content like messages and errors.
 	//
 	// Example: en-US
 	AcceptLanguage string
-	// Information about the client making this request
+	// Information about the client making this request.
 	//
 	// Example: ChatGPT/2.0 (Mac OS X 15.0.1; arm64; build 0)
 	UserAgent string
-	// Key used to ensure requests are idempotent
+	// Key used to ensure requests are idempotent.
 	//
 	// Example: idempotency_key_123
 	IdempotencyKey string
-	// Unique key for each request for tracing purposes
+	// Unique key for each request for tracing purposes.
 	//
 	// Example: request_id_123
 	RequestID string
-	// Base64 encoded signature of the request body
+	// Base64 encoded signature of the request body.
 	//
 	// Example: eyJtZX...
 	Signature string
@@ -35,7 +36,7 @@ type RequestContext struct {
 	//
 	// Example: 2025-09-25T10:30:00Z
 	Timestamp string
-	// API version
+	// API version.
 	//
 	// Example: 2026-01-30
 	APIVersion string
