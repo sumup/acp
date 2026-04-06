@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockDelegatedPaymentProvider is a mock of DelegatedPaymentProvider interface.
-type MockDelegatedPaymentProvider struct {
+// MockProvider is a mock of Provider interface.
+type MockProvider struct {
 	ctrl     *gomock.Controller
-	recorder *MockDelegatedPaymentProviderMockRecorder
+	recorder *MockProviderMockRecorder
 	isgomock struct{}
 }
 
-// MockDelegatedPaymentProviderMockRecorder is the mock recorder for MockDelegatedPaymentProvider.
-type MockDelegatedPaymentProviderMockRecorder struct {
-	mock *MockDelegatedPaymentProvider
+// MockProviderMockRecorder is the mock recorder for MockProvider.
+type MockProviderMockRecorder struct {
+	mock *MockProvider
 }
 
-// NewMockDelegatedPaymentProvider creates a new mock instance.
-func NewMockDelegatedPaymentProvider(ctrl *gomock.Controller) *MockDelegatedPaymentProvider {
-	mock := &MockDelegatedPaymentProvider{ctrl: ctrl}
-	mock.recorder = &MockDelegatedPaymentProviderMockRecorder{mock}
+// NewMockProvider creates a new mock instance.
+func NewMockProvider(ctrl *gomock.Controller) *MockProvider {
+	mock := &MockProvider{ctrl: ctrl}
+	mock.recorder = &MockProviderMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockDelegatedPaymentProvider) EXPECT() *MockDelegatedPaymentProviderMockRecorder {
+func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 	return m.recorder
 }
 
 // DelegatePayment mocks base method.
-func (m *MockDelegatedPaymentProvider) DelegatePayment(ctx context.Context, req acppayment.DelegatePaymentRequest) (*acppayment.DelegatePaymentResponse, error) {
+func (m *MockProvider) DelegatePayment(ctx context.Context, req acppayment.DelegatePaymentRequest) (*acppayment.DelegatePaymentResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelegatePayment", ctx, req)
 	ret0, _ := ret[0].(*acppayment.DelegatePaymentResponse)
@@ -51,7 +51,7 @@ func (m *MockDelegatedPaymentProvider) DelegatePayment(ctx context.Context, req 
 }
 
 // DelegatePayment indicates an expected call of DelegatePayment.
-func (mr *MockDelegatedPaymentProviderMockRecorder) DelegatePayment(ctx, req any) *gomock.Call {
+func (mr *MockProviderMockRecorder) DelegatePayment(ctx, req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelegatePayment", reflect.TypeOf((*MockDelegatedPaymentProvider)(nil).DelegatePayment), ctx, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelegatePayment", reflect.TypeOf((*MockProvider)(nil).DelegatePayment), ctx, req)
 }

@@ -34,8 +34,13 @@ const (
 	EventDataTypeOrder EventDataType = "order"
 )
 
+// OrderLineItem carries the raw line item payload included in order webhook events.
 type OrderLineItem map[string]any
+
+// Fulfillment carries the raw fulfillment payload included in order webhook events.
 type Fulfillment map[string]any
+
+// Adjustment carries the raw adjustment payload included in order webhook events.
 type Adjustment map[string]any
 
 // EventData is implemented by webhook payloads.
@@ -112,6 +117,7 @@ type webhookEvent struct {
 	Data any              `json:"data"`
 }
 
+// WebhookOption configures a [WebhookSender] returned by [Handler.GetWebhookSender].
 type WebhookOption func(*webhookSender)
 
 // WebhookWithClient allows overriding the HTTP client used for delivering webhook events.
@@ -121,21 +127,20 @@ func WebhookWithClient(client *http.Client) WebhookOption {
 	}
 }
 
-// WebhookSender is an interface of a webhook delivery implementation.
+// WebhookSender delivers checkout webhook events to an ACP agent callback endpoint.
 type WebhookSender interface {
 	// Send sends webhook to the configured webhook endpoint.
 	Send(context.Context, EventData) error
 }
 
-// GetWebhookSender returns a configued [WebhookSender] that allows your implementation to deliver webhooks
-// back to the agent.
+// GetWebhookSender returns a configured [WebhookSender] that delivers webhooks back to the agent.
 //
 // Parameters:
 //
 //   - endpoint is the absolute URL provided by OpenAI for receiving webhook events.
 //   - merchantName controls the signature header name (the header name is Merchant_Name-Signature).
 //   - secret is the HMAC secret provided by OpenAI for signing webhook payloads.
-func (h *CheckoutHandler) GetWebhookSender(endpoint, merchantName string, secret []byte, opts ...WebhookOption) (WebhookSender, error) {
+func (h *Handler) GetWebhookSender(endpoint, merchantName string, secret []byte, opts ...WebhookOption) (WebhookSender, error) {
 	endpointURL, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("parse endpoint url: %w", err)

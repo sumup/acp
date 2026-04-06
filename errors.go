@@ -32,6 +32,7 @@ const (
 	MissingAuthorization   ErrorCode = "missing_authorization"    // Authorization header missing.
 	InvalidAuthorization   ErrorCode = "invalid_authorization"    // Authorization header malformed or API key invalid.
 	RequestNotIdempotent   ErrorCode = "request_not_idempotent"
+	TooManyRequests        ErrorCode = "too_many_requests"
 )
 
 // Error represents a structured ACP error payload.

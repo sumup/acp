@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockCheckoutProvider is a mock of CheckoutProvider interface.
-type MockCheckoutProvider struct {
+// MockProvider is a mock of Provider interface.
+type MockProvider struct {
 	ctrl     *gomock.Controller
-	recorder *MockCheckoutProviderMockRecorder
+	recorder *MockProviderMockRecorder
 	isgomock struct{}
 }
 
-// MockCheckoutProviderMockRecorder is the mock recorder for MockCheckoutProvider.
-type MockCheckoutProviderMockRecorder struct {
-	mock *MockCheckoutProvider
+// MockProviderMockRecorder is the mock recorder for MockProvider.
+type MockProviderMockRecorder struct {
+	mock *MockProvider
 }
 
-// NewMockCheckoutProvider creates a new mock instance.
-func NewMockCheckoutProvider(ctrl *gomock.Controller) *MockCheckoutProvider {
-	mock := &MockCheckoutProvider{ctrl: ctrl}
-	mock.recorder = &MockCheckoutProviderMockRecorder{mock}
+// NewMockProvider creates a new mock instance.
+func NewMockProvider(ctrl *gomock.Controller) *MockProvider {
+	mock := &MockProvider{ctrl: ctrl}
+	mock.recorder = &MockProviderMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockCheckoutProvider) EXPECT() *MockCheckoutProviderMockRecorder {
+func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 	return m.recorder
 }
 
 // CancelSession mocks base method.
-func (m *MockCheckoutProvider) CancelSession(ctx context.Context, id string, req *acpcheckout.CancelSessionRequest) (*acpcheckout.CheckoutSessionBase, error) {
+func (m *MockProvider) CancelSession(ctx context.Context, id string, req *acpcheckout.CancelSessionRequest) (*acpcheckout.CheckoutSessionBase, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CancelSession", ctx, id, req)
 	ret0, _ := ret[0].(*acpcheckout.CheckoutSessionBase)
@@ -51,13 +51,13 @@ func (m *MockCheckoutProvider) CancelSession(ctx context.Context, id string, req
 }
 
 // CancelSession indicates an expected call of CancelSession.
-func (mr *MockCheckoutProviderMockRecorder) CancelSession(ctx, id, req any) *gomock.Call {
+func (mr *MockProviderMockRecorder) CancelSession(ctx, id, req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelSession", reflect.TypeOf((*MockCheckoutProvider)(nil).CancelSession), ctx, id, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelSession", reflect.TypeOf((*MockProvider)(nil).CancelSession), ctx, id, req)
 }
 
 // CompleteSession mocks base method.
-func (m *MockCheckoutProvider) CompleteSession(ctx context.Context, id string, req acpcheckout.CheckoutSessionCompleteRequest) (acpcheckout.CheckoutSessionWithOrder, error) {
+func (m *MockProvider) CompleteSession(ctx context.Context, id string, req acpcheckout.CheckoutSessionCompleteRequest) (acpcheckout.CheckoutSessionWithOrder, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CompleteSession", ctx, id, req)
 	ret0, _ := ret[0].(acpcheckout.CheckoutSessionWithOrder)
@@ -66,13 +66,13 @@ func (m *MockCheckoutProvider) CompleteSession(ctx context.Context, id string, r
 }
 
 // CompleteSession indicates an expected call of CompleteSession.
-func (mr *MockCheckoutProviderMockRecorder) CompleteSession(ctx, id, req any) *gomock.Call {
+func (mr *MockProviderMockRecorder) CompleteSession(ctx, id, req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CompleteSession", reflect.TypeOf((*MockCheckoutProvider)(nil).CompleteSession), ctx, id, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CompleteSession", reflect.TypeOf((*MockProvider)(nil).CompleteSession), ctx, id, req)
 }
 
 // CreateSession mocks base method.
-func (m *MockCheckoutProvider) CreateSession(ctx context.Context, req acpcheckout.CheckoutSessionCreateRequest) (*acpcheckout.CheckoutSessionBase, error) {
+func (m *MockProvider) CreateSession(ctx context.Context, req acpcheckout.CheckoutSessionCreateRequest) (*acpcheckout.CheckoutSessionBase, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateSession", ctx, req)
 	ret0, _ := ret[0].(*acpcheckout.CheckoutSessionBase)
@@ -81,13 +81,13 @@ func (m *MockCheckoutProvider) CreateSession(ctx context.Context, req acpcheckou
 }
 
 // CreateSession indicates an expected call of CreateSession.
-func (mr *MockCheckoutProviderMockRecorder) CreateSession(ctx, req any) *gomock.Call {
+func (mr *MockProviderMockRecorder) CreateSession(ctx, req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSession", reflect.TypeOf((*MockCheckoutProvider)(nil).CreateSession), ctx, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSession", reflect.TypeOf((*MockProvider)(nil).CreateSession), ctx, req)
 }
 
 // GetSession mocks base method.
-func (m *MockCheckoutProvider) GetSession(ctx context.Context, id string) (*acpcheckout.CheckoutSessionBase, error) {
+func (m *MockProvider) GetSession(ctx context.Context, id string) (*acpcheckout.CheckoutSessionBase, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSession", ctx, id)
 	ret0, _ := ret[0].(*acpcheckout.CheckoutSessionBase)
@@ -96,13 +96,13 @@ func (m *MockCheckoutProvider) GetSession(ctx context.Context, id string) (*acpc
 }
 
 // GetSession indicates an expected call of GetSession.
-func (mr *MockCheckoutProviderMockRecorder) GetSession(ctx, id any) *gomock.Call {
+func (mr *MockProviderMockRecorder) GetSession(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSession", reflect.TypeOf((*MockCheckoutProvider)(nil).GetSession), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSession", reflect.TypeOf((*MockProvider)(nil).GetSession), ctx, id)
 }
 
 // UpdateSession mocks base method.
-func (m *MockCheckoutProvider) UpdateSession(ctx context.Context, id string, req acpcheckout.CheckoutSessionUpdateRequest) (*acpcheckout.CheckoutSessionBase, error) {
+func (m *MockProvider) UpdateSession(ctx context.Context, id string, req acpcheckout.CheckoutSessionUpdateRequest) (*acpcheckout.CheckoutSessionBase, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateSession", ctx, id, req)
 	ret0, _ := ret[0].(*acpcheckout.CheckoutSessionBase)
@@ -111,7 +111,7 @@ func (m *MockCheckoutProvider) UpdateSession(ctx context.Context, id string, req
 }
 
 // UpdateSession indicates an expected call of UpdateSession.
-func (mr *MockCheckoutProviderMockRecorder) UpdateSession(ctx, id, req any) *gomock.Call {
+func (mr *MockProviderMockRecorder) UpdateSession(ctx, id, req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSession", reflect.TypeOf((*MockCheckoutProvider)(nil).UpdateSession), ctx, id, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSession", reflect.TypeOf((*MockProvider)(nil).UpdateSession), ctx, id, req)
 }

@@ -20,7 +20,7 @@ func TestDelegatedPaymentHandler_Create(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 
-	mockProvider := NewMockDelegatedPaymentProvider(ctrl)
+	mockProvider := NewMockProvider(ctrl)
 	mockProvider.EXPECT().
 		DelegatePayment(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(ctx context.Context, req acppayment.DelegatePaymentRequest) (*acppayment.DelegatePaymentResponse, error) {
@@ -41,7 +41,7 @@ func TestDelegatedPaymentHandler_Create(t *testing.T) {
 			}, nil
 		})
 
-	h := acppayment.NewDelegatedPaymentHandler(mockProvider, acpauth.StaticTokenAuthorizer("test-key"))
+	h := acppayment.NewHandler(mockProvider, acpauth.StaticTokenAuthorizer("test-key"))
 
 	body := []byte(`{"payment_method":{"type":"card","card_number_type":"fpan","number":"4242424242424242","display_card_funding_type":"credit","metadata":{}},"allowance":{"reason":"one_time","max_amount":1000,"currency":"usd","checkout_session_id":"cs_1","merchant_id":"m_1","expires_at":"2026-12-31T00:00:00Z"},"risk_signals":[{"type":"card_testing","action":"authorized","score":0}],"metadata":{}}`)
 	req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
@@ -66,7 +66,7 @@ func TestDelegatedPaymentHandler(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 
-		h := acppayment.NewDelegatedPaymentHandler(NewMockDelegatedPaymentProvider(ctrl), acpauth.StaticTokenAuthorizer("test-key"))
+		h := acppayment.NewHandler(NewMockProvider(ctrl), acpauth.StaticTokenAuthorizer("test-key"))
 
 		body := []byte(`{"payment_method":{"type":"card","card_number_type":"fpan","number":"4242424242424242","display_card_funding_type":"credit","metadata":{}},"allowance":{"reason":"one_time","max_amount":1000,"currency":"usd","checkout_session_id":"cs_1","merchant_id":"m_1","expires_at":"2026-12-31T00:00:00Z"},"risk_signals":[{"type":"card_testing","action":"authorized","score":0}],"metadata":{}}`)
 		req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
@@ -80,11 +80,11 @@ func TestDelegatedPaymentHandler(t *testing.T) {
 			t.Fatalf("expected 400 got %d body=%s", rec.Code, rec.Body.String())
 		}
 
-		var got acppayment.Error
+		var got acp.Error
 		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 			t.Fatalf("decode error response: %v", err)
 		}
-		if got.Code != acppayment.ErrorCode("missing_authorization") {
+		if got.Code != acp.ErrorCode("missing_authorization") {
 			t.Fatalf("expected missing_authorization got %q", got.Code)
 		}
 		if got.Message != "Authorization header is required" {
@@ -97,7 +97,7 @@ func TestDelegatedPaymentHandler(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 
-		h := acppayment.NewDelegatedPaymentHandler(NewMockDelegatedPaymentProvider(ctrl), acpauth.StaticTokenAuthorizer("test-key"))
+		h := acppayment.NewHandler(NewMockProvider(ctrl), acpauth.StaticTokenAuthorizer("test-key"))
 
 		body := []byte(`{"payment_method":{"type":"card","card_number_type":"fpan","number":"4242424242424242","display_card_funding_type":"credit","display_last4":"42","metadata":{}},"allowance":{"reason":"one_time","max_amount":1000,"currency":"usd","checkout_session_id":"cs_1","merchant_id":"m_1","expires_at":"2026-12-31T00:00:00Z"},"risk_signals":[{"type":"card_testing","action":"authorized","score":0}],"metadata":{}}`)
 		req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
@@ -113,11 +113,11 @@ func TestDelegatedPaymentHandler(t *testing.T) {
 			t.Fatalf("expected 422 got %d body=%s", rec.Code, rec.Body.String())
 		}
 
-		var got acppayment.Error
+		var got acp.Error
 		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 			t.Fatalf("decode error response: %v", err)
 		}
-		if got.Code != acppayment.InvalidCard {
+		if got.Code != acp.InvalidCard {
 			t.Fatalf("expected invalid_card got %q", got.Code)
 		}
 		if got.Param == nil || *got.Param != "$.payment_method.display_last4" {

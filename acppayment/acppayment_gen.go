@@ -16,22 +16,6 @@ const (
 	OneTime AllowanceReason = "one_time"
 )
 
-// Defines values for ErrorCode.
-const (
-	DuplicateRequest    ErrorCode = "duplicate_request"
-	IdempotencyConflict ErrorCode = "idempotency_conflict"
-	InvalidCard         ErrorCode = "invalid_card"
-	TooManyRequests     ErrorCode = "too_many_requests"
-)
-
-// Defines values for ErrorType.
-const (
-	InvalidRequest     ErrorType = "invalid_request"
-	ProcessingError    ErrorType = "processing_error"
-	RateLimitExceeded  ErrorType = "rate_limit_exceeded"
-	ServiceUnavailable ErrorType = "service_unavailable"
-)
-
 // Defines values for PaymentMethodCardCardNumberType.
 const (
 	Fpan         PaymentMethodCardCardNumberType = "fpan"
@@ -142,27 +126,6 @@ type DelegatePaymentResponse struct {
 	// Metadata Metadata echoed from the request plus system-added fields
 	Metadata map[string]string `json:"metadata"`
 }
-
-// Error defines model for Error.
-type Error struct {
-	// Code Specific error code for programmatic handling
-	Code ErrorCode `json:"code"`
-
-	// Message Human-readable error message
-	Message string `json:"message"`
-
-	// Param JSONPath of offending field
-	Param *string `json:"param,omitempty"`
-
-	// Type High-level error category
-	Type ErrorType `json:"type"`
-}
-
-// ErrorCode Specific error code for programmatic handling
-type ErrorCode string
-
-// ErrorType High-level error category
-type ErrorType string
 
 // PaymentMethodCard defines model for PaymentMethodCard.
 type PaymentMethodCard struct {

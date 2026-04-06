@@ -20,8 +20,8 @@ var requestValidator = openapi.MustNewRequestValidator(openAPISpec)
 
 //go:generate go tool go.uber.org/mock/mockgen -source=$GOFILE -destination=handler_mock_test.go -package=acpcheckout_test
 
-// CheckoutProvider is implemented by business logic that owns checkout sessions.
-type CheckoutProvider interface {
+// Provider is implemented by business logic that owns checkout sessions.
+type Provider interface {
 	// CreateSession initializes a new checkout session from items and (optionally) buyer and fulfillment info.
 	// MUST return [CheckoutSessionBase] with a rich, authoritative cart state.
 	CreateSession(ctx context.Context, req CheckoutSessionCreateRequest) (*CheckoutSessionBase, error)
@@ -43,28 +43,50 @@ type CheckoutProvider interface {
 	CancelSession(ctx context.Context, id string, req *CancelSessionRequest) (*CheckoutSessionBase, error)
 }
 
-// CheckoutHandler wires ACP checkout routes to a CheckoutProvider.
-type CheckoutHandler struct {
-	service CheckoutProvider
+// Option configures a [Handler] during construction.
+type Option func(*config)
+
+type config struct {
+	mux *http.ServeMux
+}
+
+// WithServeMux registers ACP checkout routes on mux instead of creating a new [http.ServeMux].
+func WithServeMux(mux *http.ServeMux) Option {
+	return func(c *config) {
+		c.mux = mux
+	}
+}
+
+// Handler wires ACP checkout routes to a [Provider].
+type Handler struct {
+	service Provider
 	mux     *srv.Mux
 	auth    acpauth.Authorizer
 }
 
-func NewCheckoutHandler(service CheckoutProvider, authorizer acpauth.Authorizer) *CheckoutHandler {
-	h := &CheckoutHandler{
+// NewHandler returns a [Handler] that serves the ACP checkout API.
+func NewHandler(service Provider, authorizer acpauth.Authorizer, opts ...Option) *Handler {
+	cfg := new(config)
+
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	h := &Handler{
 		service: service,
 		auth:    authorizer,
 	}
-	h.mux = srv.NewMux(h.handleError)
+	h.mux = srv.NewMux(cfg.mux)
 	h.registerRoutes()
 	return h
 }
 
-func (h *CheckoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP dispatches checkout requests to the configured ACP routes.
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func (h *CheckoutHandler) registerRoutes() {
+func (h *Handler) registerRoutes() {
 	h.mux.HandleFunc("POST /checkout_sessions", h.handleCreate, srv.RequestContextMiddleware(), srv.AuthorizationMiddleware(h.auth))
 	h.mux.HandleFunc("GET /checkout_sessions/{id}", h.handleGet, srv.RequestContextMiddleware(), srv.AuthorizationMiddleware(h.auth))
 	h.mux.HandleFunc("POST /checkout_sessions/{id}", h.handleUpdate, srv.RequestContextMiddleware(), srv.AuthorizationMiddleware(h.auth))
@@ -72,27 +94,7 @@ func (h *CheckoutHandler) registerRoutes() {
 	h.mux.HandleFunc("POST /checkout_sessions/{id}/cancel", h.handleCancel, srv.RequestContextMiddleware(), srv.AuthorizationMiddleware(h.auth))
 }
 
-func (h *CheckoutHandler) handleError(w http.ResponseWriter, _ *http.Request, err error) {
-	if acpErr := new(acp.Error); errors.As(err, &acpErr) {
-		_ = srv.WriteACPError(w, acpErr, func(errorType, code, message string, param *string) Error {
-			return Error{
-				Type:    ErrorType(errorType),
-				Code:    code,
-				Message: message,
-				Param:   param,
-			}
-		})
-		return
-	}
-
-	_ = srv.WriteError(w, http.StatusInternalServerError, Error{
-		Type:    ProcessingError,
-		Code:    string(acp.ProcessingError),
-		Message: "internal server error",
-	})
-}
-
-func (h *CheckoutHandler) handleCreate(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) error {
 	if err := requestValidator.Validate(r); err != nil {
 		return err
 	}
@@ -113,7 +115,7 @@ func (h *CheckoutHandler) handleCreate(w http.ResponseWriter, r *http.Request) e
 	return srv.WriteJSON(w, r, http.StatusCreated, session)
 }
 
-func (h *CheckoutHandler) handleGet(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) handleGet(w http.ResponseWriter, r *http.Request) error {
 	if err := requestValidator.Validate(r); err != nil {
 		return err
 	}
@@ -133,7 +135,7 @@ func (h *CheckoutHandler) handleGet(w http.ResponseWriter, r *http.Request) erro
 	return srv.WriteJSON(w, r, http.StatusOK, session)
 }
 
-func (h *CheckoutHandler) handleUpdate(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) handleUpdate(w http.ResponseWriter, r *http.Request) error {
 	if err := requestValidator.Validate(r); err != nil {
 		return err
 	}
@@ -160,7 +162,7 @@ func (h *CheckoutHandler) handleUpdate(w http.ResponseWriter, r *http.Request) e
 	return srv.WriteJSON(w, r, http.StatusOK, session)
 }
 
-func (h *CheckoutHandler) handleComplete(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) handleComplete(w http.ResponseWriter, r *http.Request) error {
 	if err := requestValidator.Validate(r); err != nil {
 		return err
 	}
@@ -187,7 +189,7 @@ func (h *CheckoutHandler) handleComplete(w http.ResponseWriter, r *http.Request)
 	return srv.WriteJSON(w, r, http.StatusOK, session)
 }
 
-func (h *CheckoutHandler) handleCancel(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) handleCancel(w http.ResponseWriter, r *http.Request) error {
 	if err := requestValidator.Validate(r); err != nil {
 		return err
 	}

@@ -130,14 +130,6 @@ const (
 	DiscountErrorCodeDiscountCodeUserNotLoggedIn       DiscountErrorCode = "discount_code_user_not_logged_in"
 )
 
-// Defines values for ErrorType.
-const (
-	InvalidRequest       ErrorType = "invalid_request"
-	ProcessingError      ErrorType = "processing_error"
-	RequestNotIdempotent ErrorType = "request_not_idempotent"
-	ServiceUnavailable   ErrorType = "service_unavailable"
-)
-
 // Defines values for FulfillmentGroupDestinationType.
 const (
 	FulfillmentGroupDestinationTypeDigital       FulfillmentGroupDestinationType = "digital"
@@ -1044,30 +1036,6 @@ type DiscountsResponse struct {
 	// Rejected Discount codes that could not be applied, with reasons.
 	Rejected *[]RejectedDiscount `json:"rejected,omitempty"`
 }
-
-// Error Protocol-level error returned in 4xx/5xx responses when the server cannot
-// return a valid CheckoutSession at all (e.g. malformed request or unexpected
-// failure). Use Error—not MessageError—when there is no valid session state
-// to return. type semantics: invalid_request — malformed request, missing
-// required fields, or invalid JSON; request_not_idempotent — idempotency
-// violation; processing_error — unexpected server-side failure;
-// service_unavailable — temporary unavailability.
-type Error struct {
-	// Code Implementation-defined error code
-	Code string `json:"code"`
-
-	// Message Human-readable error message
-	Message string `json:"message"`
-
-	// Param RFC 9535 JSONPath (optional)
-	Param *string `json:"param,omitempty"`
-
-	// Type Error type indicating the category of protocol-level error
-	Type ErrorType `json:"type"`
-}
-
-// ErrorType Error type indicating the category of protocol-level error
-type ErrorType string
 
 // EstimatedDelivery defines model for EstimatedDelivery.
 type EstimatedDelivery struct {

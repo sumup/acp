@@ -80,7 +80,7 @@ func (memoryService) CancelSession(_ context.Context, id string, _ *acpcheckout.
 }
 
 func main() {
-	handler := acpcheckout.NewCheckoutHandler(memoryService{}, acpauth.StaticTokenAuthorizer("demo-key"))
+	handler := acpcheckout.NewHandler(memoryService{}, acpauth.StaticTokenAuthorizer("demo-key"))
 	log.Println("checkout example listening on :8080")
 	if err := http.ListenAndServe(":8080", handler); err != nil {
 		log.Fatal(err)

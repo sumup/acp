@@ -1,6 +1,7 @@
 package srv
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"io"
@@ -25,16 +26,14 @@ type Middleware func(http.ResponseWriter, *http.Request, HandlerFunc) error
 // [ErrorHandler].
 type Mux struct {
 	*http.ServeMux
-	handleError ErrorHandler
 }
 
 // NewMux returns a [Mux] that dispatches handler errors to handleError.
 //
 // It panics if handleError is nil.
-func NewMux(handleError ErrorHandler) *Mux {
+func NewMux(mux *http.ServeMux) *Mux {
 	return &Mux{
-		ServeMux:    http.NewServeMux(),
-		handleError: handleError,
+		ServeMux: cmp.Or(mux, http.NewServeMux()),
 	}
 }
 
@@ -54,7 +53,16 @@ func (m *Mux) HandleFunc(pattern string, f HandlerFunc, middleware ...Middleware
 
 	m.ServeMux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		if err := f(w, r); err != nil {
-			m.handleError(w, r, err)
+			if acpErr, ok := errors.AsType[*acp.Error](err); ok {
+				_ = WriteACPError(w, acpErr)
+				return
+			}
+
+			_ = WriteError(w, http.StatusInternalServerError, &acp.Error{
+				Type:    acp.ProcessingError,
+				Code:    acp.ErrorCode(acp.ProcessingError),
+				Message: "internal server error",
+			})
 		}
 	})
 }
@@ -64,8 +72,8 @@ func (m *Mux) HandleFunc(pattern string, f HandlerFunc, middleware ...Middleware
 //
 // The build function receives err's type, code, message, and param values as
 // strings that can be mapped into the caller's error model.
-func WriteACPError[T any](w http.ResponseWriter, err *acp.Error, build func(errorType, code, message string, param *string) T) error {
-	return WriteError(w, err.StatusCode(), build(string(err.Type), string(err.Code), err.Message, err.Param))
+func WriteACPError(w http.ResponseWriter, err *acp.Error) error {
+	return WriteError(w, err.StatusCode(), err)
 }
 
 // WriteError writes payload as JSON with ACP error response headers and status.

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/sumup/acp"
 	"github.com/sumup/acp/acpauth"
@@ -21,62 +20,60 @@ var requestValidator = openapi.MustNewRequestValidator(openAPISpec)
 
 //go:generate go tool go.uber.org/mock/mockgen -source=$GOFILE -destination=handler_mock_test.go -package=acppayment_test
 
-// DelegatedPaymentProvider owns delegated payment tokenization.
-type DelegatedPaymentProvider interface {
+// Provider owns delegated payment tokenization.
+type Provider interface {
+	// DelegatePayment tokenizes the supplied payment method for later checkout completion.
 	DelegatePayment(ctx context.Context, req DelegatePaymentRequest) (*DelegatePaymentResponse, error)
 }
 
-// DelegatedPaymentHandler exposes the delegate payment API over net/http.
-type DelegatedPaymentHandler struct {
-	service DelegatedPaymentProvider
+// Option configures a [Handler] during construction.
+type Option func(*config)
+
+type config struct {
+	mux *http.ServeMux
+}
+
+// WithServeMux registers ACP payment routes on mux instead of creating a new [http.ServeMux].
+func WithServeMux(mux *http.ServeMux) Option {
+	return func(c *config) {
+		c.mux = mux
+	}
+}
+
+// Handler exposes the delegate payment API over net/http.
+type Handler struct {
+	service Provider
 	mux     *srv.Mux
 	auth    acpauth.Authorizer
 }
 
-func NewDelegatedPaymentHandler(service DelegatedPaymentProvider, authorizer acpauth.Authorizer) *DelegatedPaymentHandler {
-	h := &DelegatedPaymentHandler{
+// NewHandler returns a [Handler] that serves the ACP delegated payment API.
+func NewHandler(service Provider, authorizer acpauth.Authorizer, opts ...Option) *Handler {
+	cfg := new(config)
+
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	h := &Handler{
 		service: service,
 		auth:    authorizer,
 	}
-	h.mux = srv.NewMux(h.handleError)
+	h.mux = srv.NewMux(cfg.mux)
 	h.registerRoutes()
 	return h
 }
 
-func (h *DelegatedPaymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP dispatches delegated payment requests to the configured ACP routes.
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func (h *DelegatedPaymentHandler) registerRoutes() {
+func (h *Handler) registerRoutes() {
 	h.mux.HandleFunc("POST /agentic_commerce/delegate_payment", h.handleDelegatePayment, srv.RequestContextMiddleware(), srv.AuthorizationMiddleware(h.auth))
 }
 
-func (h *DelegatedPaymentHandler) handleError(w http.ResponseWriter, _ *http.Request, err error) {
-	if acpErr := new(acp.Error); errors.As(err, &acpErr) {
-		_ = srv.WriteACPError(w, acpErr, func(errorType, code, message string, param *string) Error {
-			mappedCode := ErrorCode(code)
-			if mappedCode == ErrorCode(acp.InvalidRequest) && param != nil && strings.HasPrefix(*param, "$.payment_method") {
-				mappedCode = InvalidCard
-			}
-
-			return Error{
-				Type:    ErrorType(errorType),
-				Code:    mappedCode,
-				Message: message,
-				Param:   param,
-			}
-		})
-		return
-	}
-
-	_ = srv.WriteError(w, http.StatusInternalServerError, Error{
-		Type:    ProcessingError,
-		Code:    ErrorCode(acp.ProcessingError),
-		Message: "internal server error",
-	})
-}
-
-func (h *DelegatedPaymentHandler) handleDelegatePayment(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) handleDelegatePayment(w http.ResponseWriter, r *http.Request) error {
 	if err := requestValidator.Validate(r); err != nil {
 		return err
 	}
