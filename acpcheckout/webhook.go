@@ -1,4 +1,4 @@
-package agentic_checkout
+package acpcheckout
 
 import (
 	"bytes"

@@ -1,5 +1,5 @@
-package: delegate_payment
-output: delegate_payment_gen.go
+package: acpcheckout
+output: acpcheckout_gen.go
 generate:
   models: true
 output-options:

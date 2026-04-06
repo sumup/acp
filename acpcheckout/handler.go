@@ -1,4 +1,4 @@
-package agentic_checkout
+package acpcheckout
 
 import (
 	"context"
@@ -13,12 +13,12 @@ import (
 	"github.com/sumup/acp/internal/srv"
 )
 
-//go:embed spec/openapi.agentic_checkout.yaml
+//go:embed spec/openapi.acpcheckout.yaml
 var openAPISpec []byte
 
 var requestValidator = openapi.MustNewRequestValidator(openAPISpec)
 
-//go:generate go tool go.uber.org/mock/mockgen -source=$GOFILE -destination=handler_mock_test.go -package=agentic_checkout_test
+//go:generate go tool go.uber.org/mock/mockgen -source=$GOFILE -destination=handler_mock_test.go -package=acpcheckout_test
 
 // CheckoutProvider is implemented by business logic that owns checkout sessions.
 type CheckoutProvider interface {

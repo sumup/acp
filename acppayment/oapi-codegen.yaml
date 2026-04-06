@@ -1,5 +1,5 @@
-package: agentic_checkout
-output: agentic_checkout_gen.go
+package: acppayment
+output: acppayment_gen.go
 generate:
   models: true
 output-options:

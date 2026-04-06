@@ -6,60 +6,60 @@ import (
 	"net/http"
 
 	"github.com/sumup/acp/acpauth"
-	"github.com/sumup/acp/agentic_checkout"
+	"github.com/sumup/acp/acpcheckout"
 )
 
 type memoryService struct{}
 
-func (memoryService) CreateSession(_ context.Context, req agentic_checkout.CheckoutSessionCreateRequest) (*agentic_checkout.CheckoutSessionBase, error) {
-	return &agentic_checkout.CheckoutSessionBase{
+func (memoryService) CreateSession(_ context.Context, req acpcheckout.CheckoutSessionCreateRequest) (*acpcheckout.CheckoutSessionBase, error) {
+	return &acpcheckout.CheckoutSessionBase{
 		Id:                 "cs_demo_1",
 		Currency:           req.Currency,
 		Capabilities:       req.Capabilities,
-		Status:             agentic_checkout.CheckoutSessionBaseStatusInProgress,
-		FulfillmentOptions: []agentic_checkout.CheckoutSessionBase_FulfillmentOptions_Item{},
-		LineItems:          []agentic_checkout.LineItem{},
-		Links:              []agentic_checkout.Link{},
-		Messages:           []agentic_checkout.CheckoutSessionBase_Messages_Item{},
+		Status:             acpcheckout.CheckoutSessionBaseStatusInProgress,
+		FulfillmentOptions: []acpcheckout.CheckoutSessionBase_FulfillmentOptions_Item{},
+		LineItems:          []acpcheckout.LineItem{},
+		Links:              []acpcheckout.Link{},
+		Messages:           []acpcheckout.CheckoutSessionBase_Messages_Item{},
 	}, nil
 }
 
-func (memoryService) UpdateSession(_ context.Context, id string, _ agentic_checkout.CheckoutSessionUpdateRequest) (*agentic_checkout.CheckoutSessionBase, error) {
-	return &agentic_checkout.CheckoutSessionBase{
+func (memoryService) UpdateSession(_ context.Context, id string, _ acpcheckout.CheckoutSessionUpdateRequest) (*acpcheckout.CheckoutSessionBase, error) {
+	return &acpcheckout.CheckoutSessionBase{
 		Id:                 id,
 		Currency:           "USD",
-		Status:             agentic_checkout.CheckoutSessionBaseStatusInProgress,
-		FulfillmentOptions: []agentic_checkout.CheckoutSessionBase_FulfillmentOptions_Item{},
-		LineItems:          []agentic_checkout.LineItem{},
-		Links:              []agentic_checkout.Link{},
-		Messages:           []agentic_checkout.CheckoutSessionBase_Messages_Item{},
+		Status:             acpcheckout.CheckoutSessionBaseStatusInProgress,
+		FulfillmentOptions: []acpcheckout.CheckoutSessionBase_FulfillmentOptions_Item{},
+		LineItems:          []acpcheckout.LineItem{},
+		Links:              []acpcheckout.Link{},
+		Messages:           []acpcheckout.CheckoutSessionBase_Messages_Item{},
 	}, nil
 }
 
-func (memoryService) GetSession(_ context.Context, id string) (*agentic_checkout.CheckoutSessionBase, error) {
-	return &agentic_checkout.CheckoutSessionBase{
+func (memoryService) GetSession(_ context.Context, id string) (*acpcheckout.CheckoutSessionBase, error) {
+	return &acpcheckout.CheckoutSessionBase{
 		Id:                 id,
 		Currency:           "USD",
-		Status:             agentic_checkout.CheckoutSessionBaseStatusReadyForPayment,
-		FulfillmentOptions: []agentic_checkout.CheckoutSessionBase_FulfillmentOptions_Item{},
-		LineItems:          []agentic_checkout.LineItem{},
-		Links:              []agentic_checkout.Link{},
-		Messages:           []agentic_checkout.CheckoutSessionBase_Messages_Item{},
+		Status:             acpcheckout.CheckoutSessionBaseStatusReadyForPayment,
+		FulfillmentOptions: []acpcheckout.CheckoutSessionBase_FulfillmentOptions_Item{},
+		LineItems:          []acpcheckout.LineItem{},
+		Links:              []acpcheckout.Link{},
+		Messages:           []acpcheckout.CheckoutSessionBase_Messages_Item{},
 	}, nil
 }
 
-func (memoryService) CompleteSession(_ context.Context, id string, _ agentic_checkout.CheckoutSessionCompleteRequest) (agentic_checkout.CheckoutSessionWithOrder, error) {
-	return agentic_checkout.CheckoutSessionWithOrder{
+func (memoryService) CompleteSession(_ context.Context, id string, _ acpcheckout.CheckoutSessionCompleteRequest) (acpcheckout.CheckoutSessionWithOrder, error) {
+	return acpcheckout.CheckoutSessionWithOrder{
 		Id:                 id,
 		Currency:           "USD",
-		Capabilities:       agentic_checkout.Capabilities{},
-		FulfillmentOptions: []agentic_checkout.CheckoutSessionWithOrder_FulfillmentOptions_Item{},
-		LineItems:          []agentic_checkout.LineItem{},
-		Links:              []agentic_checkout.Link{},
-		Messages:           []agentic_checkout.CheckoutSessionWithOrder_Messages_Item{},
-		Status:             agentic_checkout.CheckoutSessionWithOrderStatusCompleted,
-		Totals:             []agentic_checkout.Total{},
-		Order: agentic_checkout.Order{
+		Capabilities:       acpcheckout.Capabilities{},
+		FulfillmentOptions: []acpcheckout.CheckoutSessionWithOrder_FulfillmentOptions_Item{},
+		LineItems:          []acpcheckout.LineItem{},
+		Links:              []acpcheckout.Link{},
+		Messages:           []acpcheckout.CheckoutSessionWithOrder_Messages_Item{},
+		Status:             acpcheckout.CheckoutSessionWithOrderStatusCompleted,
+		Totals:             []acpcheckout.Total{},
+		Order: acpcheckout.Order{
 			Id:                "ord_demo_1",
 			CheckoutSessionId: id,
 			PermalinkUrl:      "https://example.com/orders/ord_demo_1",
@@ -67,20 +67,20 @@ func (memoryService) CompleteSession(_ context.Context, id string, _ agentic_che
 	}, nil
 }
 
-func (memoryService) CancelSession(_ context.Context, id string, _ *agentic_checkout.CancelSessionRequest) (*agentic_checkout.CheckoutSessionBase, error) {
-	return &agentic_checkout.CheckoutSessionBase{
+func (memoryService) CancelSession(_ context.Context, id string, _ *acpcheckout.CancelSessionRequest) (*acpcheckout.CheckoutSessionBase, error) {
+	return &acpcheckout.CheckoutSessionBase{
 		Id:                 id,
 		Currency:           "USD",
-		Status:             agentic_checkout.CheckoutSessionBaseStatusCanceled,
-		FulfillmentOptions: []agentic_checkout.CheckoutSessionBase_FulfillmentOptions_Item{},
-		LineItems:          []agentic_checkout.LineItem{},
-		Links:              []agentic_checkout.Link{},
-		Messages:           []agentic_checkout.CheckoutSessionBase_Messages_Item{},
+		Status:             acpcheckout.CheckoutSessionBaseStatusCanceled,
+		FulfillmentOptions: []acpcheckout.CheckoutSessionBase_FulfillmentOptions_Item{},
+		LineItems:          []acpcheckout.LineItem{},
+		Links:              []acpcheckout.Link{},
+		Messages:           []acpcheckout.CheckoutSessionBase_Messages_Item{},
 	}, nil
 }
 
 func main() {
-	handler := agentic_checkout.NewCheckoutHandler(memoryService{}, acpauth.StaticTokenAuthorizer("demo-key"))
+	handler := acpcheckout.NewCheckoutHandler(memoryService{}, acpauth.StaticTokenAuthorizer("demo-key"))
 	log.Println("checkout example listening on :8080")
 	if err := http.ListenAndServe(":8080", handler); err != nil {
 		log.Fatal(err)

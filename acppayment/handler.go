@@ -1,4 +1,4 @@
-package delegate_payment
+package acppayment
 
 import (
 	"context"
@@ -14,12 +14,12 @@ import (
 	"github.com/sumup/acp/internal/srv"
 )
 
-//go:embed spec/openapi.delegate_payment.yaml
+//go:embed spec/openapi.acppayment.yaml
 var openAPISpec []byte
 
 var requestValidator = openapi.MustNewRequestValidator(openAPISpec)
 
-//go:generate go tool go.uber.org/mock/mockgen -source=$GOFILE -destination=handler_mock_test.go -package=delegate_payment_test
+//go:generate go tool go.uber.org/mock/mockgen -source=$GOFILE -destination=handler_mock_test.go -package=acppayment_test
 
 // DelegatedPaymentProvider owns delegated payment tokenization.
 type DelegatedPaymentProvider interface {
