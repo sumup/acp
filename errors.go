@@ -64,6 +64,14 @@ func (e *Error) RetryAfter() time.Duration {
 	return e.retryAfter
 }
 
+// StatusCode returns the HTTP status associated with the error.
+func (e *Error) StatusCode() int {
+	if e == nil || e.status == 0 {
+		return http.StatusInternalServerError
+	}
+	return e.status
+}
+
 type errorOption func(*Error)
 
 // WithOffendingParam sets the JSON path for the field that triggered the error.

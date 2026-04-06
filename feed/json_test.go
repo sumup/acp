@@ -8,7 +8,11 @@ import (
 )
 
 func TestNewJSONLGzWriter(t *testing.T) {
+	t.Parallel()
+
 	t.Run("writes expected jsonl gzip output", func(t *testing.T) {
+		t.Parallel()
+
 		feed := sampleFeed()
 
 		var buf bytes.Buffer
@@ -39,7 +43,11 @@ func TestNewJSONLGzWriter(t *testing.T) {
 }
 
 func TestJSONLGzWriter_Write(t *testing.T) {
+	t.Parallel()
+
 	t.Run("returns error for nil product", func(t *testing.T) {
+		t.Parallel()
+
 		var buf bytes.Buffer
 		writer := NewJSONLGzWriter(&buf)
 
@@ -49,6 +57,8 @@ func TestJSONLGzWriter_Write(t *testing.T) {
 	})
 
 	t.Run("returns error after close", func(t *testing.T) {
+		t.Parallel()
+
 		var buf bytes.Buffer
 		writer := NewJSONLGzWriter(&buf)
 		if err := writer.Close(); err != nil {
@@ -61,7 +71,11 @@ func TestJSONLGzWriter_Write(t *testing.T) {
 }
 
 func TestJSONLGzWriter_Close(t *testing.T) {
+	t.Parallel()
+
 	t.Run("is idempotent", func(t *testing.T) {
+		t.Parallel()
+
 		var buf bytes.Buffer
 		writer := NewJSONLGzWriter(&buf)
 
@@ -75,7 +89,11 @@ func TestJSONLGzWriter_Close(t *testing.T) {
 }
 
 func TestJSONLReadSeq(t *testing.T) {
+	t.Parallel()
+
 	t.Run("reads all products", func(t *testing.T) {
+		t.Parallel()
+
 		file, err := os.Open("testdata/feed.jsonl")
 		if err != nil {
 			t.Fatalf("open jsonl: %v", err)
@@ -102,6 +120,8 @@ func TestJSONLReadSeq(t *testing.T) {
 	})
 
 	t.Run("returns decode error", func(t *testing.T) {
+		t.Parallel()
+
 		var gotErr error
 		for result := range JSONLReadSeq(strings.NewReader("{")) {
 			if result.Err != nil {
@@ -116,7 +136,11 @@ func TestJSONLReadSeq(t *testing.T) {
 }
 
 func TestJSONLGzReadSeq(t *testing.T) {
+	t.Parallel()
+
 	t.Run("reads all products from gzip input", func(t *testing.T) {
+		t.Parallel()
+
 		feed := sampleFeed()
 
 		var buf bytes.Buffer
@@ -148,6 +172,8 @@ func TestJSONLGzReadSeq(t *testing.T) {
 	})
 
 	t.Run("returns gzip open error", func(t *testing.T) {
+		t.Parallel()
+
 		var gotErr error
 		for result := range JSONLGzReadSeq(strings.NewReader("not gzip")) {
 			if result.Err != nil {

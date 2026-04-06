@@ -2,13 +2,24 @@ package delegate_payment
 
 import (
 	"context"
-	"encoding/json"
+	_ "embed"
 	"errors"
 	"io"
 	"net/http"
+	"strings"
+
+	"github.com/sumup/acp"
+	"github.com/sumup/acp/acpauth"
+	"github.com/sumup/acp/internal/openapi"
+	"github.com/sumup/acp/internal/srv"
 )
 
-const apiVersionHeaderValue = "2026-01-30"
+//go:embed spec/openapi.delegate_payment.yaml
+var openAPISpec []byte
+
+var requestValidator = openapi.MustNewRequestValidator(openAPISpec)
+
+//go:generate go tool go.uber.org/mock/mockgen -source=$GOFILE -destination=handler_mock_test.go -package=delegate_payment_test
 
 // DelegatedPaymentProvider owns delegated payment tokenization.
 type DelegatedPaymentProvider interface {
@@ -18,15 +29,17 @@ type DelegatedPaymentProvider interface {
 // DelegatedPaymentHandler exposes the delegate payment API over net/http.
 type DelegatedPaymentHandler struct {
 	service DelegatedPaymentProvider
-	mux     *http.ServeMux
+	mux     *srv.Mux
+	auth    acpauth.Authorizer
 }
 
-func NewDelegatedPaymentHandler(service DelegatedPaymentProvider) *DelegatedPaymentHandler {
-	if service == nil {
-		panic("delegate_payment: service is required")
+func NewDelegatedPaymentHandler(service DelegatedPaymentProvider, authorizer acpauth.Authorizer) *DelegatedPaymentHandler {
+	h := &DelegatedPaymentHandler{
+		service: service,
+		auth:    authorizer,
 	}
-	h := &DelegatedPaymentHandler{service: service, mux: http.NewServeMux()}
-	h.mux.HandleFunc("POST /agentic_commerce/delegate_payment", h.handleDelegatePayment)
+	h.mux = srv.NewMux(h.handleError)
+	h.registerRoutes()
 	return h
 }
 
@@ -34,75 +47,50 @@ func (h *DelegatedPaymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	h.mux.ServeHTTP(w, r)
 }
 
-func (h *DelegatedPaymentHandler) handleDelegatePayment(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Idempotency-Key") == "" {
-		writeError(w, http.StatusBadRequest, InvalidRequest, ErrorCode("idempotency_key_required"), "Idempotency-Key header is required")
-		return
-	}
-	var req DelegatePaymentRequest
-	if err := decodeJSON(r.Body, &req); err != nil {
-		writeError(w, http.StatusBadRequest, InvalidRequest, ErrorCode("invalid_request"), err.Error())
-		return
-	}
-	if err := req.Validate(); err != nil {
-		writeError(w, http.StatusBadRequest, InvalidRequest, ErrorCode("invalid_request"), err.Error())
-		return
-	}
-	resp, err := h.service.DelegatePayment(r.Context(), req)
-	if err != nil {
-		writeServiceError(w, err)
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, resp)
+func (h *DelegatedPaymentHandler) registerRoutes() {
+	h.mux.HandleFunc("POST /agentic_commerce/delegate_payment", h.handleDelegatePayment, srv.RequestContextMiddleware(), srv.AuthorizationMiddleware(h.auth))
 }
 
-func decodeJSON(body io.ReadCloser, v any) error {
-	defer func() { _ = body.Close() }()
-	dec := json.NewDecoder(body)
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(v); err != nil {
+func (h *DelegatedPaymentHandler) handleError(w http.ResponseWriter, _ *http.Request, err error) {
+	if acpErr := new(acp.Error); errors.As(err, &acpErr) {
+		_ = srv.WriteACPError(w, acpErr, func(errorType, code, message string, param *string) Error {
+			mappedCode := ErrorCode(code)
+			if mappedCode == ErrorCode(acp.InvalidRequest) && param != nil && strings.HasPrefix(*param, "$.payment_method") {
+				mappedCode = InvalidCard
+			}
+
+			return Error{
+				Type:    ErrorType(errorType),
+				Code:    mappedCode,
+				Message: message,
+				Param:   param,
+			}
+		})
+		return
+	}
+
+	_ = srv.WriteError(w, http.StatusInternalServerError, Error{
+		Type:    ProcessingError,
+		Code:    ErrorCode(acp.ProcessingError),
+		Message: "internal server error",
+	})
+}
+
+func (h *DelegatedPaymentHandler) handleDelegatePayment(w http.ResponseWriter, r *http.Request) error {
+	if err := requestValidator.Validate(r); err != nil {
 		return err
 	}
-	if dec.More() {
-		return errors.New("unexpected data after JSON body")
+
+	var req DelegatePaymentRequest
+	if err := srv.DecodeJSON(r.Body, &req); errors.Is(err, io.EOF) {
+		return acp.NewInvalidRequestError("request body required")
+	} else if err != nil {
+		return acp.NewInvalidRequestError(err.Error())
 	}
-	return nil
-}
 
-type HandlerError struct {
-	Status  int
-	Type    ErrorType
-	Code    ErrorCode
-	Message string
-}
-
-func (e *HandlerError) Error() string { return e.Message }
-
-func writeServiceError(w http.ResponseWriter, err error) {
-	var handlerErr *HandlerError
-	if errors.As(err, &handlerErr) {
-		writeError(w, handlerErr.Status, handlerErr.Type, handlerErr.Code, handlerErr.Message)
-		return
+	resp, err := h.service.DelegatePayment(r.Context(), req)
+	if err != nil {
+		return err
 	}
-	writeError(w, http.StatusInternalServerError, ProcessingError, ErrorCode("processing_error"), "internal server error")
-}
-
-func writeError(w http.ResponseWriter, status int, typ ErrorType, code ErrorCode, message string) {
-	payload := Error{Type: typ, Code: code, Message: message}
-	w.Header().Set("API-Version", apiVersionHeaderValue)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
-}
-
-func writeJSON(w http.ResponseWriter, r *http.Request, status int, payload any) {
-	w.Header().Set("API-Version", apiVersionHeaderValue)
-	w.Header().Set("Content-Type", "application/json")
-	if key := r.Header.Get("Idempotency-Key"); key != "" {
-		w.Header().Set("Idempotency-Key", key)
-	}
-	w.WriteHeader(status)
-	if payload != nil {
-		_ = json.NewEncoder(w).Encode(payload)
-	}
+	return srv.WriteJSON(w, r, http.StatusCreated, resp)
 }

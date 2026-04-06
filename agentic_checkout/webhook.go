@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/sumup/acp"
 )
 
 // WebhookEventType enumerates the supported checkout webhook events.
@@ -185,7 +187,7 @@ func (s *webhookSender) Send(ctx context.Context, data EventData) error {
 		return fmt.Errorf("checkout: build webhook request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("API-Version", apiVersionHeaderValue)
+	req.Header.Set("API-Version", acp.APIVersion)
 	req.Header.Set(s.signatureHeader, signWebhookPayload(s.secret, body))
 
 	resp, err := s.client.Do(req)

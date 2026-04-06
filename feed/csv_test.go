@@ -8,7 +8,11 @@ import (
 )
 
 func TestNewCSVGzWriter(t *testing.T) {
+	t.Parallel()
+
 	t.Run("writes expected csv gzip output", func(t *testing.T) {
+		t.Parallel()
+
 		feed := sampleFeed()
 
 		var buf bytes.Buffer
@@ -39,7 +43,11 @@ func TestNewCSVGzWriter(t *testing.T) {
 }
 
 func TestCSVGzWriter_Write(t *testing.T) {
+	t.Parallel()
+
 	t.Run("returns error for nil product", func(t *testing.T) {
+		t.Parallel()
+
 		var buf bytes.Buffer
 		writer := NewCSVGzWriter(&buf)
 
@@ -49,6 +57,8 @@ func TestCSVGzWriter_Write(t *testing.T) {
 	})
 
 	t.Run("returns error after close", func(t *testing.T) {
+		t.Parallel()
+
 		var buf bytes.Buffer
 		writer := NewCSVGzWriter(&buf)
 		if err := writer.Close(); err != nil {
@@ -61,7 +71,11 @@ func TestCSVGzWriter_Write(t *testing.T) {
 }
 
 func TestCSVGzWriter_Close(t *testing.T) {
+	t.Parallel()
+
 	t.Run("is idempotent", func(t *testing.T) {
+		t.Parallel()
+
 		var buf bytes.Buffer
 		writer := NewCSVGzWriter(&buf)
 
@@ -75,7 +89,11 @@ func TestCSVGzWriter_Close(t *testing.T) {
 }
 
 func TestCSVReadSeq(t *testing.T) {
+	t.Parallel()
+
 	t.Run("reads all products", func(t *testing.T) {
+		t.Parallel()
+
 		file, err := os.Open("testdata/feed.csv")
 		if err != nil {
 			t.Fatalf("open csv: %v", err)
@@ -105,6 +123,8 @@ func TestCSVReadSeq(t *testing.T) {
 	})
 
 	t.Run("returns row parse error", func(t *testing.T) {
+		t.Parallel()
+
 		var gotErr error
 		for result := range CSVReadSeq(strings.NewReader("id\n\"unterminated")) {
 			if result.Err != nil {
@@ -119,7 +139,11 @@ func TestCSVReadSeq(t *testing.T) {
 }
 
 func TestCSVGzReadSeq(t *testing.T) {
+	t.Parallel()
+
 	t.Run("reads all products from gzip input", func(t *testing.T) {
+		t.Parallel()
+
 		feed := sampleFeed()
 
 		var buf bytes.Buffer
@@ -151,6 +175,8 @@ func TestCSVGzReadSeq(t *testing.T) {
 	})
 
 	t.Run("returns gzip open error", func(t *testing.T) {
+		t.Parallel()
+
 		var gotErr error
 		for result := range CSVGzReadSeq(strings.NewReader("not gzip")) {
 			if result.Err != nil {

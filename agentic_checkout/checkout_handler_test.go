@@ -1,55 +1,122 @@
-package agentic_checkout
+package agentic_checkout_test
 
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/sumup/acp"
+	"github.com/sumup/acp/acpauth"
+	"github.com/sumup/acp/agentic_checkout"
+	"go.uber.org/mock/gomock"
 )
 
-type checkoutStub struct{}
+func TestCheckoutHandler_Create(t *testing.T) {
+	t.Parallel()
 
-func (checkoutStub) CreateSession(context.Context, CheckoutSessionCreateRequest) (*CheckoutSessionBase, error) {
-	return &CheckoutSessionBase{Id: "cs_1", Currency: "USD", Status: CheckoutSessionBaseStatusInProgress, FulfillmentOptions: []CheckoutSessionBase_FulfillmentOptions_Item{}, LineItems: []LineItem{}, Links: []Link{}, Messages: []CheckoutSessionBase_Messages_Item{}}, nil
-}
-func (checkoutStub) UpdateSession(context.Context, string, CheckoutSessionUpdateRequest) (*CheckoutSessionBase, error) {
-	return &CheckoutSessionBase{Id: "cs_1", Currency: "USD", Status: CheckoutSessionBaseStatusInProgress, FulfillmentOptions: []CheckoutSessionBase_FulfillmentOptions_Item{}, LineItems: []LineItem{}, Links: []Link{}, Messages: []CheckoutSessionBase_Messages_Item{}}, nil
-}
-func (checkoutStub) GetSession(context.Context, string) (*CheckoutSessionBase, error) {
-	return &CheckoutSessionBase{Id: "cs_1", Currency: "USD", Status: CheckoutSessionBaseStatusInProgress, FulfillmentOptions: []CheckoutSessionBase_FulfillmentOptions_Item{}, LineItems: []LineItem{}, Links: []Link{}, Messages: []CheckoutSessionBase_Messages_Item{}}, nil
-}
-func (checkoutStub) CompleteSession(context.Context, string, CheckoutSessionCompleteRequest) (CheckoutSessionWithOrder, error) {
-	return CheckoutSessionWithOrder{
-		Id:                 "cs_1",
-		Currency:           "USD",
-		Capabilities:       Capabilities{},
-		FulfillmentOptions: []CheckoutSessionWithOrder_FulfillmentOptions_Item{},
-		LineItems:          []LineItem{},
-		Links:              []Link{},
-		Messages:           []CheckoutSessionWithOrder_Messages_Item{},
-		Status:             CheckoutSessionWithOrderStatusInProgress,
-		Totals:             []Total{},
-		Order: Order{
-			Id:                "ord_1",
-			CheckoutSessionId: "cs_1",
-			PermalinkUrl:      "https://example.com/orders/ord_1",
-		},
-	}, nil
-}
-func (checkoutStub) CancelSession(context.Context, string, *CancelSessionRequest) (*CheckoutSessionBase, error) {
-	return &CheckoutSessionBase{Id: "cs_1", Currency: "USD", Status: CheckoutSessionBaseStatusCanceled, FulfillmentOptions: []CheckoutSessionBase_FulfillmentOptions_Item{}, LineItems: []LineItem{}, Links: []Link{}, Messages: []CheckoutSessionBase_Messages_Item{}}, nil
-}
+	ctrl := gomock.NewController(t)
+	mockProvider := NewMockCheckoutProvider(ctrl)
+	mockProvider.EXPECT().
+		CreateSession(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, req agentic_checkout.CheckoutSessionCreateRequest) (*agentic_checkout.CheckoutSessionBase, error) {
+			requestCtx := acp.RequestContextFromContext(ctx)
+			if requestCtx == nil {
+				t.Fatal("expected request context on handler context")
+			}
+			if requestCtx.Authorization != "Bearer test-key" {
+				t.Fatalf("unexpected authorization %q", requestCtx.Authorization)
+			}
+			if requestCtx.APIVersion != acp.APIVersion {
+				t.Fatalf("unexpected api version %q", requestCtx.APIVersion)
+			}
+			return &agentic_checkout.CheckoutSessionBase{
+				Id:                 "cs_1",
+				Currency:           "USD",
+				Status:             agentic_checkout.CheckoutSessionBaseStatusInProgress,
+				FulfillmentOptions: []agentic_checkout.CheckoutSessionBase_FulfillmentOptions_Item{},
+				LineItems:          []agentic_checkout.LineItem{},
+				Links:              []agentic_checkout.Link{},
+				Messages:           []agentic_checkout.CheckoutSessionBase_Messages_Item{},
+			}, nil
+		})
 
-func TestCheckoutHandlerCreate(t *testing.T) {
-	h := NewCheckoutHandler(checkoutStub{})
+	h := agentic_checkout.NewCheckoutHandler(mockProvider, acpauth.StaticTokenAuthorizer("test-key"))
+
 	body := []byte(`{"capabilities":{},"currency":"USD","line_items":[{"id":"sku_1"}]}`)
 	req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer test-key")
+	req.Header.Set("API-Version", "2026-01-30")
 	req.Header.Set("Idempotency-Key", "idem-1")
 	rec := httptest.NewRecorder()
+
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected 201 got %d", rec.Code)
+		t.Fatalf("expected 201 got %d body=%s", rec.Code, rec.Body.String())
 	}
+}
+
+func TestCheckoutHandler(t *testing.T) {
+	t.Parallel()
+
+	t.Run("unauthorized", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+
+		h := agentic_checkout.NewCheckoutHandler(NewMockCheckoutProvider(ctrl), acpauth.StaticTokenAuthorizer("test-key"))
+
+		body := []byte(`{"capabilities":{},"currency":"USD","line_items":[{"id":"sku_1"}]}`)
+		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("API-Version", "2026-01-30")
+		rec := httptest.NewRecorder()
+
+		h.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 got %d body=%s", rec.Code, rec.Body.String())
+		}
+
+		var got agentic_checkout.Error
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode error response: %v", err)
+		}
+		if got.Code != "missing_authorization" {
+			t.Fatalf("expected missing_authorization got %q", got.Code)
+		}
+	})
+
+	t.Run("semantic validation error", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+
+		h := agentic_checkout.NewCheckoutHandler(NewMockCheckoutProvider(ctrl), acpauth.StaticTokenAuthorizer("test-key"))
+
+		body := []byte(`{"capabilities":{},"currency":"USD","line_items":[]}`)
+		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer test-key")
+		req.Header.Set("API-Version", "2026-01-30")
+		req.Header.Set("Idempotency-Key", "idem-1")
+		rec := httptest.NewRecorder()
+
+		h.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("expected 422 got %d body=%s", rec.Code, rec.Body.String())
+		}
+
+		var got agentic_checkout.Error
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode error response: %v", err)
+		}
+		if got.Param == nil || *got.Param != "$.line_items" {
+			t.Fatalf("unexpected param: %#v", got.Param)
+		}
+	})
 }

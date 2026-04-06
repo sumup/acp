@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/sumup/acp/acpauth"
 	"github.com/sumup/acp/agentic_checkout"
 )
 
@@ -79,7 +80,7 @@ func (memoryService) CancelSession(_ context.Context, id string, _ *agentic_chec
 }
 
 func main() {
-	handler := agentic_checkout.NewCheckoutHandler(memoryService{})
+	handler := agentic_checkout.NewCheckoutHandler(memoryService{}, acpauth.StaticTokenAuthorizer("demo-key"))
 	log.Println("checkout example listening on :8080")
 	if err := http.ListenAndServe(":8080", handler); err != nil {
 		log.Fatal(err)

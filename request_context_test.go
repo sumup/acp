@@ -21,10 +21,11 @@ func TestRequestContextFromRequest(t *testing.T) {
 	req.Header.Set("Timestamp", "2025-01-02T03:04:05Z")
 	req.Header.Set("API-Version", APIVersion)
 
-	got := requestContextFromRequest(req)
-	if got == nil {
-		t.Fatalf("expected request context")
+	got, err := RequestContextFromRequest(req)
+	if err != nil {
+		t.Fatalf("RequestContextFromRequest() error = %v", err)
 	}
+
 	if got.Authorization != "Bearer api_key" {
 		t.Fatalf("unexpected authorization %q", got.Authorization)
 	}
@@ -55,7 +56,7 @@ func TestRequestContextRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	requestCtx := &RequestContext{Authorization: "Bearer 123"}
-	ctx := contextWithRequestContext(context.Background(), requestCtx)
+	ctx := ContextWithRequestContext(context.Background(), requestCtx)
 	got := RequestContextFromContext(ctx)
 	if got == nil {
 		t.Fatalf("expected request context on context")
@@ -66,4 +67,72 @@ func TestRequestContextRoundTrip(t *testing.T) {
 	if RequestContextFromContext(context.Background()) != nil {
 		t.Fatalf("expected nil when request context not set")
 	}
+}
+
+func TestRequestContext_validate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid request", func(t *testing.T) {
+		t.Parallel()
+
+		req := httptest.NewRequest(http.MethodGet, "/checkout_sessions/cs_123", nil)
+		req.Header.Set("Authorization", "Bearer test-key")
+		req.Header.Set("API-Version", APIVersion)
+
+		ctx, err := RequestContextFromRequest(req)
+		if err != nil {
+			t.Fatalf("RequestContextFromRequest() error = %v", err)
+		}
+		if ctx == nil {
+			t.Fatal("expected request context")
+		}
+	})
+
+	t.Run("missing authorization", func(t *testing.T) {
+		t.Parallel()
+
+		req := httptest.NewRequest(http.MethodGet, "/checkout_sessions/cs_123", nil)
+		req.Header.Set("API-Version", APIVersion)
+
+		ctx, err := RequestContextFromRequest(req)
+		if err != nil {
+			t.Fatalf("RequestContextFromRequest() error = %v", err)
+		}
+		if ctx.Authorization != "" {
+			t.Fatalf("RequestContextFromRequest() authorization = %q, want empty", ctx.Authorization)
+		}
+	})
+
+	t.Run("invalid api version format", func(t *testing.T) {
+		t.Parallel()
+
+		req := httptest.NewRequest(http.MethodGet, "/checkout_sessions/cs_123", nil)
+		req.Header.Set("Authorization", "Bearer test-key")
+		req.Header.Set("API-Version", "20260130")
+
+		_, err := RequestContextFromRequest(req)
+		if err == nil {
+			t.Fatal("RequestContextFromRequest() error = nil, want error")
+		}
+		acpErr := err.(*Error)
+		if acpErr.Message != "API-Version header must be in YYYY-MM-DD format" {
+			t.Fatalf("RequestContextFromRequest() message = %q", acpErr.Message)
+		}
+	})
+
+	t.Run("missing api version", func(t *testing.T) {
+		t.Parallel()
+
+		req := httptest.NewRequest(http.MethodGet, "/checkout_sessions/cs_123", nil)
+		req.Header.Set("Authorization", "Bearer test-key")
+
+		_, err := RequestContextFromRequest(req)
+		if err == nil {
+			t.Fatal("RequestContextFromRequest() error = nil, want error")
+		}
+		acpErr := err.(*Error)
+		if acpErr.Message != "API-Version header is required" {
+			t.Fatalf("RequestContextFromRequest() message = %q", acpErr.Message)
+		}
+	})
 }

@@ -4,9 +4,10 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 )
 
-// RequestContext caries the standard ACP headers.
+// RequestContext carries the standard ACP headers.
 type RequestContext struct {
 	// API Key used to make requests.
 	//
@@ -42,8 +43,8 @@ type RequestContext struct {
 	APIVersion string
 }
 
-func requestContextFromRequest(r *http.Request) *RequestContext {
-	return &RequestContext{
+func RequestContextFromRequest(r *http.Request) (*RequestContext, error) {
+	requestCtx := &RequestContext{
 		Authorization:  strings.TrimSpace(r.Header.Get("Authorization")),
 		AcceptLanguage: strings.TrimSpace(r.Header.Get("Accept-Language")),
 		UserAgent:      strings.TrimSpace(r.Header.Get("User-Agent")),
@@ -53,11 +54,36 @@ func requestContextFromRequest(r *http.Request) *RequestContext {
 		Timestamp:      strings.TrimSpace(r.Header.Get("Timestamp")),
 		APIVersion:     strings.TrimSpace(r.Header.Get("API-Version")),
 	}
+	if err := requestCtx.validate(); err != nil {
+		return nil, err
+	}
+	return requestCtx, nil
+}
+
+func ContextWithRequestContextFromRequest(r *http.Request) (context.Context, error) {
+	requestCtx, err := RequestContextFromRequest(r)
+	if err != nil {
+		return nil, err
+	}
+	return ContextWithRequestContext(r.Context(), requestCtx), nil
+}
+
+func (r *RequestContext) validate() *Error {
+	if r == nil {
+		return NewInvalidRequestError("request context is required")
+	}
+	if r.APIVersion == "" {
+		return NewInvalidRequestError("API-Version header is required")
+	}
+	if parsed, err := time.Parse("2006-01-02", r.APIVersion); err != nil || parsed.Format("2006-01-02") != r.APIVersion {
+		return NewInvalidRequestError("API-Version header must be in YYYY-MM-DD format")
+	}
+	return nil
 }
 
 type requestContextKey struct{}
 
-func contextWithRequestContext(ctx context.Context, requestCtx *RequestContext) context.Context {
+func ContextWithRequestContext(ctx context.Context, requestCtx *RequestContext) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}

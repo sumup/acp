@@ -14,10 +14,10 @@
 //
 // Payment service providers can call [NewDelegatedPaymentHandler] with their own
 // [DelegatedPaymentProvider] to accept delegate payment payloads, validate them,
-// and emit vault tokens scoped to a checkout session. Optional helpers such as
-// [WithAuthenticator] and
-// [DelegatedPaymentWithSignatureVerifier] keep API keys and signed requests in
-// sync with ACP's security requirements.
+// and emit vault tokens scoped to a checkout session. Helpers in the
+// [github.com/sumup/acp/acpauth] package and
+// [DelegatedPaymentWithSignatureVerifier] keep bearer-token authorization and
+// signed requests in sync with ACP's security requirements.
 //
 // # How it works
 //

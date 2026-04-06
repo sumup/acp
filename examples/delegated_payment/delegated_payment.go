@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sumup/acp/acpauth"
 	"github.com/sumup/acp/delegate_payment"
 )
 
@@ -49,7 +50,7 @@ func cloneMap(in map[string]string) map[string]string {
 }
 
 func main() {
-	handler := delegate_payment.NewDelegatedPaymentHandler(newService())
+	handler := delegate_payment.NewDelegatedPaymentHandler(newService(), acpauth.StaticTokenAuthorizer("demo-key"))
 	log.Println("delegated payment example listening on :8080")
 	if err := http.ListenAndServe(":8080", handler); err != nil {
 		log.Fatal(err)
