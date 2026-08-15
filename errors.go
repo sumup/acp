@@ -9,12 +9,10 @@ import (
 type ErrorType string
 
 const (
-	InvalidRequest ErrorType = "invalid_request" // Missing or malformed field.
-	// Deprecated: use invalid_request + code idempotency_conflict/idempotency_key_required/idempotency_in_flight.
-	RequestNotIdempotentType ErrorType = "request_not_idempotent" // Idempotency violation.
-	ProcessingError          ErrorType = "processing_error"       // Downstream gateway or network failure.
-	RateLimitExceeded        ErrorType = "rate_limit_exceeded"    // Too many requests.
-	ServiceUnavailable       ErrorType = "service_unavailable"    // Temporary outage or maintenance.
+	InvalidRequest     ErrorType = "invalid_request"     // Missing or malformed field.
+	ProcessingError    ErrorType = "processing_error"    // Downstream gateway or network failure.
+	RateLimitExceeded  ErrorType = "rate_limit_exceeded" // Too many requests.
+	ServiceUnavailable ErrorType = "service_unavailable" // Temporary outage or maintenance.
 )
 
 // ErrorCode is a machine-readable identifier for the specific failure.
@@ -33,7 +31,6 @@ const (
 	InvalidAuthorization   ErrorCode = "invalid_authorization"    // Authorization header malformed or API key invalid.
 	MissingAPIVersion      ErrorCode = "missing_api_version"      // API-Version header missing.
 	UnsupportedAPIVersion  ErrorCode = "unsupported_api_version"  // API-Version is not supported by this server.
-	RequestNotIdempotent   ErrorCode = "request_not_idempotent"
 	TooManyRequests        ErrorCode = "too_many_requests"
 )
 

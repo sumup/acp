@@ -29,8 +29,6 @@ go get github.com/sumup/acp
 | [`signature`](https://pkg.go.dev/github.com/sumup/acp/signature) | Verify optional signed ACP requests. |
 | [`discount`](https://pkg.go.dev/github.com/sumup/acp/discount), [`extension`](https://pkg.go.dev/github.com/sumup/acp/extension) | Use generated extension models. |
 
-The older [`feed`](https://pkg.go.dev/github.com/sumup/acp/feed) package only supports legacy pull-based CSV and JSONL feeds. New integrations should use `acpfeed`, where merchants push products to an agent-hosted API.
-
 ## Server handlers
 
 The checkout, cart, payment, and authentication packages expose a `Provider` interface and a `net/http` handler. Implement the interface, supply an `acpauth.Authorizer`, and mount the handler directly or into an existing `http.ServeMux` with `WithServeMux`.
@@ -135,7 +133,7 @@ if response.JSON201 == nil {
 }
 ```
 
-See the executable examples on [pkg.go.dev](https://pkg.go.dev/github.com/sumup/acp) for discovery, webhooks, request signing, and feed upserts. The standalone legacy feed exporter remains at [`examples/feed`](examples/feed).
+See the executable examples on [pkg.go.dev](https://pkg.go.dev/github.com/sumup/acp) for discovery, webhooks, request signing, and feed upserts.
 
 ## Development
 
