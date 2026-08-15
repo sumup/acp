@@ -1,0 +1,920 @@
+openapi: 3.1.0
+info:
+  title: Agentic Checkout Webhooks API
+  version: '2026-04-17'
+  description: >
+    Webhook receiver hosted by OpenAI to accept merchant order lifecycle events.
+
+
+    Requests are signed via the Merchant-Signature header
+    (`t=<unix_seconds>,v1=<64_hex>`)
+
+    to prevent replay attacks (timestamp window) and to verify authenticity
+
+    and integrity (HMAC over payload with shared secret).
+
+    Signed payload is `timestamp + "." + raw_body`; HMAC-SHA256.
+
+    Reject with 401 if missing, malformed, timestamp out of window, or
+    verification fails.
+
+    Recommended timestamp tolerance is 300 seconds.
+
+
+    ## Migration Notes
+
+
+    The `EventDataOrder` schema now composes the full `Order` schema from the
+
+    checkout spec via `$ref`. This means all Order fields (line_items,
+
+    fulfillments, adjustments, totals, etc.) can be included in webhook
+    payloads.
+
+
+    The legacy `refunds[]` field has been removed. Use `adjustments[]` on the
+
+    Order schema instead, which supports refunds, credits, returns, disputes,
+
+    and more.
+servers:
+  - url: https://openai.example.com
+tags:
+  - name: Webhooks
+    description: Incoming order events
+paths:
+  /agentic_checkout/webhooks/order_events:
+    post:
+      tags:
+        - Webhooks
+      summary: Receive order lifecycle events
+      operationId: postOrderEvents
+      description: >
+        Merchants POST order events so ChatGPT can stay in sync with
+        fulfillment-grade truth.
+
+        Requests MUST be signed with an HMAC signature in the
+        `Merchant-Signature` header.
+
+
+        The `data` field MUST contain the full Order object (not incremental
+        deltas).
+
+        All optional Order fields (line_items, fulfillments, adjustments,
+        totals) SHOULD
+
+        be included when available.
+      parameters:
+        - name: Merchant-Signature
+          in: header
+          required: true
+          description: >-
+            t=<unix_seconds>,v1=<64_hex>. HMAC-SHA256(timestamp + "." +
+            raw_body, secret). Return 401 if invalid.
+          schema:
+            type: string
+            pattern: ^t=\d+,v1=[a-fA-F0-9]{64}$
+            example: >-
+              t=1709123456,v1=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        - name: Request-Id
+          in: header
+          required: false
+          description: Unique identifier for request tracking and debugging
+          schema:
+            type: string
+        - name: Timestamp
+          in: header
+          required: false
+          description: ISO 8601 timestamp for request timing validation
+          schema:
+            type: string
+            format: date-time
+        - name: Content-Type
+          in: header
+          required: true
+          description: Must be application/json
+          schema:
+            type: string
+            example: application/json
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEvent'
+            examples:
+              order_created:
+                summary: New order created
+                value:
+                  type: order_create
+                  data:
+                    type: order
+                    id: ord_123
+                    checkout_session_id: checkout_session_123
+                    permalink_url: https://example.com/orders/123
+                    status: created
+                    line_items:
+                      - id: li_shoes
+                        title: Running Shoes
+                        quantity:
+                          ordered: 1
+                          current: 1
+                          fulfilled: 0
+                        unit_price: 9900
+                        subtotal: 9900
+                    totals:
+                      - type: subtotal
+                        display_text: Subtotal
+                        amount: 9900
+                      - type: fulfillment
+                        display_text: Shipping
+                        amount: 500
+                      - type: tax
+                        display_text: Tax
+                        amount: 860
+                      - type: total
+                        display_text: Total
+                        amount: 11260
+              order_shipped:
+                summary: Order shipped with tracking
+                value:
+                  type: order_update
+                  data:
+                    type: order
+                    id: ord_123
+                    checkout_session_id: checkout_session_123
+                    permalink_url: https://example.com/orders/123
+                    status: shipped
+                    line_items:
+                      - id: li_shoes
+                        title: Running Shoes
+                        quantity:
+                          ordered: 1
+                          current: 1
+                          fulfilled: 1
+                        unit_price: 9900
+                        subtotal: 9900
+                        status: fulfilled
+                    fulfillments:
+                      - id: ful_1
+                        type: shipping
+                        status: shipped
+                        line_items:
+                          - id: li_shoes
+                            quantity: 1
+                        carrier: USPS
+                        tracking_number: '9400111899223456789012'
+                        tracking_url: >-
+                          https://tools.usps.com/go/TrackConfirmAction?tLabels=9400111899223456789012
+                        events:
+                          - id: evt_1
+                            type: shipped
+                            occurred_at: '2026-02-05T10:00:00Z'
+                    adjustments: []
+                    totals:
+                      - type: subtotal
+                        display_text: Subtotal
+                        amount: 9900
+                      - type: fulfillment
+                        display_text: Shipping
+                        amount: 500
+                      - type: tax
+                        display_text: Tax
+                        amount: 860
+                      - type: total
+                        display_text: Total
+                        amount: 11260
+              order_with_refund:
+                summary: Order with a completed refund
+                value:
+                  type: order_update
+                  data:
+                    type: order
+                    id: ord_456
+                    checkout_session_id: checkout_session_456
+                    permalink_url: https://example.com/orders/456
+                    status: completed
+                    adjustments:
+                      - id: adj_1
+                        type: refund
+                        occurred_at: '2026-02-10T14:30:00Z'
+                        status: completed
+                        amount: 10760
+                        currency: usd
+                        description: Defective item refund (inclusive of tax)
+                    totals:
+                      - type: subtotal
+                        display_text: Subtotal
+                        amount: 9900
+                      - type: fulfillment
+                        display_text: Shipping
+                        amount: 500
+                      - type: tax
+                        display_text: Tax
+                        amount: 860
+                      - type: total
+                        display_text: Total
+                        amount: 11260
+                      - type: amount_refunded
+                        display_text: Refunded
+                        amount: 10760
+      responses:
+        '200':
+          description: Event accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    description: Confirms the event was received
+                  request_id:
+                    type: string
+                    description: Echo of the Request-Id header if provided
+                required:
+                  - received
+        '400':
+          description: Bad payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: >-
+            Invalid or missing Merchant-Signature (malformed, replay, or
+            verification failed).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_signature:
+                  summary: Verification failed
+                  value:
+                    type: invalid_request
+                    code: invalid_signature
+                    message: Webhook signature verification failed.
+                missing_signature:
+                  summary: Header missing
+                  value:
+                    type: invalid_request
+                    code: invalid_signature
+                    message: Missing Merchant-Signature header.
+                malformed_signature:
+                  summary: Bad format
+                  value:
+                    type: invalid_request
+                    code: invalid_signature
+                    message: Merchant-Signature must be t=<timestamp>,v1=<64_hex>.
+                timestamp_expired:
+                  summary: Replay or clock skew
+                  value:
+                    type: invalid_request
+                    code: invalid_signature
+                    message: Timestamp outside allowed window.
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    EventDataOrder:
+      description: >
+        Order data included in webhook events. Uses the full Order schema
+
+        from the checkout spec. The 'type' discriminator field is always
+        'order'.
+      allOf:
+        - $ref: '#/components/schemas/Order'
+      required:
+        - type
+        - checkout_session_id
+        - permalink_url
+        - status
+    WebhookEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          description: >-
+            Event type. Implementations MUST accept unrecognized values
+            gracefully. Defined values: 'order_create', 'order_update'.
+            order_create for new orders, order_update for changes to existing
+            orders.
+        data:
+          $ref: '#/components/schemas/EventDataOrder'
+          description: The order object associated with this event
+      required:
+        - type
+        - data
+      example:
+        type: order_update
+        data:
+          type: order
+          checkout_session_id: cs_01HV3P3ABC123
+          permalink_url: https://merchant.example.com/orders/ord_123456
+          status: processing
+    Error:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum:
+            - invalid_request
+            - processing_error
+            - service_unavailable
+          description: High-level error category
+        code:
+          type: string
+          description: Specific error code for programmatic handling
+        message:
+          type: string
+          description: Human-readable error message
+        param:
+          type: string
+          description: JSONPath of the offending field if applicable
+      required:
+        - type
+        - code
+        - message
+      example:
+        type: invalid_request
+        code: missing_required_field
+        message: The 'amount' field is required
+        param: $.amount
+    EstimatedDelivery:
+      type: object
+      additionalProperties: false
+      properties:
+        earliest:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp for earliest expected delivery
+        latest:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp for latest expected delivery
+      required:
+        - earliest
+        - latest
+      example:
+        earliest: '2026-02-15'
+        latest: '2026-02-20'
+      description: Estimated delivery date range for a fulfillment option
+    OrderConfirmation:
+      type: object
+      additionalProperties: false
+      properties:
+        confirmation_number:
+          type: string
+          description: Order confirmation number
+        confirmation_email_sent:
+          type: boolean
+          description: Whether a confirmation email has been sent
+        receipt_url:
+          type: string
+          format: uri
+          description: URL to the order receipt
+        invoice_number:
+          type: string
+          description: Invoice number if generated
+      example:
+        order_id: ord_abc123
+        order_number: '12345'
+        confirmation_url: https://example.com/orders/ord_abc123
+      description: >-
+        Order confirmation details including order number and tracking
+        information
+    SupportInfo:
+      type: object
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+          description: Support contact email
+        phone:
+          type: string
+          description: Support contact phone number
+        hours:
+          type: string
+          description: Support hours of operation
+        help_center_url:
+          type: string
+          format: uri
+          description: URL to merchant's help center
+      example:
+        email: support@example.com
+        phone: +1-800-555-0123
+        url: https://example.com/support
+      description: Customer support contact information including email, phone, and URL
+    OrderLineItemQuantity:
+      type: object
+      additionalProperties: false
+      description: >-
+        Quantity tracking for an order line item. Uses a 3-field model: ordered
+        (original), current (active after cancellations/returns), fulfilled
+        (completed).
+      properties:
+        ordered:
+          type: integer
+          minimum: 1
+          description: Quantity originally ordered by the customer
+        current:
+          type: integer
+          minimum: 0
+          description: >-
+            Current active quantity on the order. May be less than ordered due
+            to cancellations or returns. A value of 0 means the line item has
+            been fully removed.
+        fulfilled:
+          type: integer
+          minimum: 0
+          default: 0
+          description: >-
+            Quantity that has been fulfilled (shipped, picked up, or digitally
+            delivered). Applies to all fulfillment types, not just shipping.
+      required:
+        - ordered
+        - current
+      example:
+        ordered: 3
+        current: 3
+        fulfilled: 2
+    TaxBreakdownItem:
+      type: object
+      additionalProperties: false
+      properties:
+        jurisdiction:
+          type: string
+          description: >-
+            Tax jurisdiction name (e.g., 'California State Tax', 'City of San
+            Francisco')
+        rate:
+          type: number
+          description: Tax rate as a decimal (e.g., 0.0875 for 8.75%)
+        amount:
+          type: integer
+          description: >-
+            Tax amount in minor currency units (e.g. 100 cents for $1.00 or 100
+            for ¥100)
+      required:
+        - jurisdiction
+        - rate
+        - amount
+      example:
+        name: State Sales Tax
+        amount: 464
+        rate: 0.08
+      description: Breakdown of tax amounts by type, jurisdiction, or rate
+    Total:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum:
+            - items_base_amount
+            - items_discount
+            - subtotal
+            - discount
+            - fulfillment
+            - tax
+            - fee
+            - gift_wrap
+            - tip
+            - store_credit
+            - total
+            - amount_refunded
+          description: Type of total line item
+        display_text:
+          type: string
+          description: Localized display text for this total
+        amount:
+          type: integer
+          description: >-
+            Amount in minor currency units (e.g. 100 cents for $1.00 or 100 for
+            ¥100)
+        presentment_amount:
+          type: integer
+          description: >-
+            Amount in presentment currency minor units if different from
+            settlement currency
+        description:
+          type: string
+          description: Additional descriptive text for this total
+        breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxBreakdownItem'
+          description: Detailed breakdown for tax totals
+      required:
+        - type
+        - display_text
+        - amount
+      example:
+        currency: usd
+        subtotal: 5800
+        discount: 0
+        tax: 464
+        shipping: 500
+        total: 6764
+      description: >-
+        Total amounts for the checkout including subtotal, discounts, tax,
+        shipping, and final total
+    OrderLineItem:
+      type: object
+      additionalProperties: false
+      description: Per-line-item tracking of what was ordered and fulfillment progress.
+      properties:
+        id:
+          type: string
+          description: >-
+            Line item identifier, used for references in fulfillments and
+            adjustments
+        title:
+          type: string
+          description: Product name
+        product_id:
+          type: string
+          description: Catalog product ID
+        description:
+          type: string
+          description: Product description
+        image_url:
+          type: string
+          format: uri
+          description: Product image URL
+        url:
+          type: string
+          format: uri
+          description: Product page URL
+        quantity:
+          $ref: '#/components/schemas/OrderLineItemQuantity'
+        unit_price:
+          type: integer
+          description: Price per unit in minor currency units (cents)
+        subtotal:
+          type: integer
+          description: Line total in minor currency units (quantity.ordered * unit_price)
+        totals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Total'
+          description: >-
+            Optional line-item level totals breakdown using the same Total
+            schema as checkout. Merchants who can provide richer breakdowns MAY
+            use this alongside or instead of unit_price/subtotal.
+        status:
+          type: string
+          description: >-
+            Derived from quantity fields. Implementations MUST accept
+            unrecognized values gracefully. Defined values: 'processing',
+            'partial', 'fulfilled', 'removed'. Rules: 'removed' if current==0,
+            'fulfilled' if fulfilled==current, 'partial' if 0<fulfilled<current,
+            'processing' otherwise.
+      required:
+        - id
+        - title
+        - quantity
+      example:
+        id: oli_001
+        title: Running Shoes
+        status: fulfilled
+        quantity:
+          ordered: 2
+          current: 2
+          fulfilled: 2
+    LineItemReference:
+      type: object
+      additionalProperties: false
+      description: >-
+        Reference to a line item with quantity, used in fulfillments and
+        adjustments
+      properties:
+        id:
+          type: string
+          description: Line item ID reference
+        quantity:
+          type: integer
+          minimum: 1
+          description: Quantity in this fulfillment or adjustment
+      required:
+        - id
+        - quantity
+      example:
+        line_item_id: item_001
+        quantity: 1
+    Address:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Recipient name for this address
+        line_one:
+          type: string
+          description: Primary street address line
+        line_two:
+          type: string
+          description: Secondary address line (apartment, suite, etc.)
+        city:
+          type: string
+          description: City name
+        state:
+          type: string
+          description: State or province code
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code
+        postal_code:
+          type: string
+          description: Postal or ZIP code
+      required:
+        - name
+        - line_one
+        - city
+        - state
+        - country
+        - postal_code
+      example:
+        name: Jane Doe
+        line_one: 123 Main Street
+        line_two: Apt 4B
+        city: New York
+        state: NY
+        country: US
+        postal_code: '10001'
+      description: Physical address for shipping, billing, or pickup locations
+    FulfillmentEvent:
+      type: object
+      additionalProperties: false
+      description: A point-in-time event in the fulfillment lifecycle.
+      properties:
+        id:
+          type: string
+          description: Event identifier
+        type:
+          type: string
+          description: >-
+            Event type. Implementations MUST accept unrecognized values
+            gracefully. Defined values: 'processing', 'shipped', 'in_transit',
+            'out_for_delivery', 'ready_for_pickup', 'delivered',
+            'failed_attempt', 'returned_to_sender', 'canceled', 'undeliverable'.
+            'out_for_delivery' and 'ready_for_pickup' are ACP extensions for
+            richer agent experiences.
+        occurred_at:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp when this event occurred
+        description:
+          type: string
+          description: Human-readable description (e.g., 'Left at front door')
+        location:
+          type: string
+          description: Location where this event occurred (e.g., 'Memphis, TN')
+      required:
+        - id
+        - type
+        - occurred_at
+      example:
+        status: shipped
+        timestamp: '2026-02-13T14:00:00Z'
+        location: San Francisco, CA
+    Fulfillment:
+      type: object
+      additionalProperties: false
+      description: >-
+        A fulfillment represents how items are delivered to the buyer (shipping,
+        pickup, digital).
+      properties:
+        id:
+          type: string
+          description: Fulfillment identifier
+        type:
+          type: string
+          enum:
+            - shipping
+            - pickup
+            - digital
+          description: Fulfillment method type
+        status:
+          type: string
+          description: >
+            Current fulfillment status. Implementations MUST accept unrecognized
+            values gracefully. Defined values: 'pending', 'processing',
+            'shipped', 'in_transit', 'out_for_delivery', 'ready_for_pickup',
+            'delivered', 'failed', 'canceled'. Not all statuses apply to all
+            types:
+
+            - shipping: pending, processing, shipped, in_transit,
+            out_for_delivery, delivered, failed, canceled
+
+            - pickup: pending, processing, ready_for_pickup, delivered, failed,
+            canceled
+
+            - digital: pending, processing, delivered, failed, canceled
+        line_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineItemReference'
+          description: Which line items and quantities are in this fulfillment
+        carrier:
+          type: string
+          description: >-
+            Carrier name (e.g., 'FedEx', 'UPS', 'USPS'). Applies to type:
+            shipping.
+        tracking_number:
+          type: string
+          description: 'Carrier tracking number. Applies to type: shipping.'
+        tracking_url:
+          type: string
+          format: uri
+          description: 'URL to track this shipment. Applies to type: shipping.'
+        destination:
+          $ref: '#/components/schemas/Address'
+        estimated_delivery:
+          $ref: '#/components/schemas/EstimatedDelivery'
+        digital_delivery:
+          type: object
+          description: 'Digital delivery details. Applies to type: digital.'
+          properties:
+            access_url:
+              type: string
+              format: uri
+              description: >-
+                URL to access digital content (download link, streaming page,
+                etc.)
+            license_key:
+              type: string
+              description: License or activation key
+            expires_at:
+              type: string
+              format: date-time
+              description: When access expires (RFC 3339 timestamp)
+        description:
+          type: string
+          description: Human-readable description (e.g., 'Backordered - ships Feb 15')
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/FulfillmentEvent'
+          description: Append-only event log tracking fulfillment progress
+      required:
+        - id
+        - type
+      example:
+        id: ful_001
+        type: shipping
+        status: shipped
+        line_items: []
+        tracking_number: 1Z999AA10123456784
+        carrier: UPS
+    Adjustment:
+      type: object
+      additionalProperties: false
+      description: A post-order change such as refund, credit, return, or dispute.
+      properties:
+        id:
+          type: string
+          description: Adjustment identifier
+        type:
+          type: string
+          description: >-
+            Type of adjustment. Implementations MUST accept unrecognized values
+            gracefully. Defined values: 'refund', 'credit', 'return',
+            'exchange', 'price_adjustment', 'cancellation', 'dispute'. Use
+            'refund' for both full and partial refunds (distinguish by amount).
+            'credit' replaces 'store_credit'. 'dispute' covers chargebacks.
+        occurred_at:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp when this adjustment occurred
+        status:
+          type: string
+          description: >-
+            Adjustment status. Implementations MUST accept unrecognized values
+            gracefully. Defined values: 'pending', 'completed', 'failed'.
+        line_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineItemReference'
+          description: >-
+            Which line items and quantities are affected (optional for
+            order-level adjustments)
+        amount:
+          type: integer
+          description: >-
+            Total amount credited to the buyer in minor currency units,
+            inclusive of any applicable tax
+        currency:
+          type: string
+          pattern: ^[a-z]{3}$
+          description: ISO 4217 currency code
+        description:
+          type: string
+          description: Human-readable reason (e.g., 'Defective item')
+        reason:
+          type: string
+          description: Structured reason code
+      required:
+        - id
+        - type
+        - occurred_at
+        - status
+      example:
+        id: adj_001
+        type: refund
+        amount: 1000
+        currency: usd
+        reason: Customer request
+        created_at: '2026-02-14T10:00:00Z'
+    Order:
+      type: object
+      additionalProperties: false
+      description: >
+        Order returned after checkout completion. Contains order details and
+        optional
+
+        rich post-purchase tracking (line items, fulfillments, adjustments).
+      properties:
+        type:
+          type: string
+          const: order
+          description: >-
+            Discriminator field for webhook payloads. Always 'order' when
+            present.
+        id:
+          type: string
+          description: Unique identifier for the order
+        checkout_session_id:
+          type: string
+          description: ID of the checkout session that created this order
+        order_number:
+          type: string
+          description: Human-readable order number for customer reference
+        permalink_url:
+          type: string
+          format: uri
+          description: Permanent URL where the customer can view order details
+        status:
+          type: string
+          description: >-
+            Order-level status. Implementations MUST accept unrecognized values
+            gracefully. Defined values: 'created', 'confirmed', 'manual_review',
+            'processing', 'shipped', 'completed', 'canceled'. 'completed' means
+            all items have been delivered/received regardless of fulfillment
+            method. Distinct from LineItem.status 'fulfilled', which indicates
+            the seller has dispatched the item.
+        estimated_delivery:
+          $ref: '#/components/schemas/EstimatedDelivery'
+        confirmation:
+          $ref: '#/components/schemas/OrderConfirmation'
+        support:
+          $ref: '#/components/schemas/SupportInfo'
+        line_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLineItem'
+          description: What was ordered, with per-item fulfillment tracking
+        fulfillments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Fulfillment'
+          description: How items are being delivered (shipping, pickup, digital)
+        adjustments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Adjustment'
+          description: 'Post-order changes: refunds, credits, returns, disputes'
+        totals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Total'
+          description: >-
+            Order-level totals using the same Total schema as checkout. The
+            'total' entry is always the original charged amount.
+            'amount_refunded' tracks cumulative refunds.
+      required:
+        - id
+        - checkout_session_id
+        - permalink_url
+      example:
+        id: ord_abc123
+        order_number: '12345'
+        status: confirmed
+        currency: usd
+        total: 6764
+        line_items: []
+        created_at: '2026-02-13T10:30:00Z'

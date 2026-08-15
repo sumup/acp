@@ -47,7 +47,7 @@ func TestDelegatedPaymentHandler_Create(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer test-key")
-	req.Header.Set("API-Version", "2026-01-30")
+	req.Header.Set("API-Version", acp.APIVersion)
 	req.Header.Set("Idempotency-Key", "idem-1")
 	rec := httptest.NewRecorder()
 
@@ -71,7 +71,7 @@ func TestDelegatedPaymentHandler(t *testing.T) {
 		body := []byte(`{"payment_method":{"type":"card","card_number_type":"fpan","number":"4242424242424242","display_card_funding_type":"credit","metadata":{}},"allowance":{"reason":"one_time","max_amount":1000,"currency":"usd","checkout_session_id":"cs_1","merchant_id":"m_1","expires_at":"2026-12-31T00:00:00Z"},"risk_signals":[{"type":"card_testing","action":"authorized","score":0}],"metadata":{}}`)
 		req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("API-Version", "2026-01-30")
+		req.Header.Set("API-Version", acp.APIVersion)
 		rec := httptest.NewRecorder()
 
 		h.ServeHTTP(rec, req)
@@ -103,7 +103,7 @@ func TestDelegatedPaymentHandler(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer test-key")
-		req.Header.Set("API-Version", "2026-01-30")
+		req.Header.Set("API-Version", acp.APIVersion)
 		req.Header.Set("Idempotency-Key", "idem-1")
 		rec := httptest.NewRecorder()
 

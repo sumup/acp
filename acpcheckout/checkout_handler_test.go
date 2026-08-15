@@ -49,7 +49,7 @@ func TestCheckoutHandler_Create(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer test-key")
-	req.Header.Set("API-Version", "2026-01-30")
+	req.Header.Set("API-Version", acp.APIVersion)
 	req.Header.Set("Idempotency-Key", "idem-1")
 	rec := httptest.NewRecorder()
 
@@ -95,7 +95,7 @@ func TestCheckoutHandler_WithServeMux(t *testing.T) {
 	checkoutReq := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(checkoutBody))
 	checkoutReq.Header.Set("Content-Type", "application/json")
 	checkoutReq.Header.Set("Authorization", "Bearer test-key")
-	checkoutReq.Header.Set("API-Version", "2026-01-30")
+	checkoutReq.Header.Set("API-Version", acp.APIVersion)
 	checkoutReq.Header.Set("Idempotency-Key", "idem-1")
 	checkoutRec := httptest.NewRecorder()
 
@@ -119,7 +119,7 @@ func TestCheckoutHandler(t *testing.T) {
 		body := []byte(`{"capabilities":{},"currency":"USD","line_items":[{"id":"sku_1"}]}`)
 		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("API-Version", "2026-01-30")
+		req.Header.Set("API-Version", acp.APIVersion)
 		rec := httptest.NewRecorder()
 
 		h.ServeHTTP(rec, req)
@@ -148,7 +148,7 @@ func TestCheckoutHandler(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer test-key")
-		req.Header.Set("API-Version", "2026-01-30")
+		req.Header.Set("API-Version", acp.APIVersion)
 		req.Header.Set("Idempotency-Key", "idem-1")
 		rec := httptest.NewRecorder()
 

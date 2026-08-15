@@ -87,11 +87,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) registerRoutes() {
-	h.mux.HandleFunc("POST /checkout_sessions", h.handleCreate, srv.RequestContextMiddleware(), srv.AuthorizationMiddleware(h.auth))
+	mutating := []srv.Middleware{srv.RequestContextMiddleware(), srv.AuthorizationMiddleware(h.auth), srv.IdempotencyMiddleware()}
+	h.mux.HandleFunc("POST /checkout_sessions", h.handleCreate, mutating...)
 	h.mux.HandleFunc("GET /checkout_sessions/{id}", h.handleGet, srv.RequestContextMiddleware(), srv.AuthorizationMiddleware(h.auth))
-	h.mux.HandleFunc("POST /checkout_sessions/{id}", h.handleUpdate, srv.RequestContextMiddleware(), srv.AuthorizationMiddleware(h.auth))
-	h.mux.HandleFunc("POST /checkout_sessions/{id}/complete", h.handleComplete, srv.RequestContextMiddleware(), srv.AuthorizationMiddleware(h.auth))
-	h.mux.HandleFunc("POST /checkout_sessions/{id}/cancel", h.handleCancel, srv.RequestContextMiddleware(), srv.AuthorizationMiddleware(h.auth))
+	h.mux.HandleFunc("POST /checkout_sessions/{id}", h.handleUpdate, mutating...)
+	h.mux.HandleFunc("POST /checkout_sessions/{id}/complete", h.handleComplete, mutating...)
+	h.mux.HandleFunc("POST /checkout_sessions/{id}/cancel", h.handleCancel, mutating...)
 }
 
 func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) error {

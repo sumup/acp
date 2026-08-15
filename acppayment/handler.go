@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/sumup/acp"
 	"github.com/sumup/acp/acpauth"
@@ -70,11 +71,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) registerRoutes() {
-	h.mux.HandleFunc("POST /agentic_commerce/delegate_payment", h.handleDelegatePayment, srv.RequestContextMiddleware(), srv.AuthorizationMiddleware(h.auth))
+	h.mux.HandleFunc(
+		"POST /agentic_commerce/delegate_payment",
+		h.handleDelegatePayment,
+		srv.RequestContextMiddleware(),
+		srv.AuthorizationMiddleware(h.auth),
+		srv.IdempotencyMiddleware(),
+	)
 }
 
 func (h *Handler) handleDelegatePayment(w http.ResponseWriter, r *http.Request) error {
 	if err := requestValidator.Validate(r); err != nil {
+		if err.Param != nil && strings.HasPrefix(*err.Param, "$.payment_method") {
+			err.Code = acp.InvalidCard
+		}
 		return err
 	}
 

@@ -1,0 +1,14 @@
+overlay: 1.0.0
+info:
+  title: Go code generation hints
+  version: 1.0.0
+actions:
+  - target: $.components.schemas.IntentTrace.properties.metadata.additionalProperties
+    description: Represent the JSON Schema scalar union as Go's native dynamic type.
+    update:
+      x-go-type: interface{}
+  - target: $.components.schemas.MessageError.properties.type
+    description: Avoid colliding with the shared acp.Error model.
+    update:
+      x-enum-varnames:
+        - MessageErrorTypeError

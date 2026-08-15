@@ -1,4 +1,3 @@
 package extension
 
-// Types in this package are retained from historical generation.
-// Current schema generation is driven by package-local OpenAPI specs.
+//go:generate go tool go-jsonschema -p extension -o extension_gen.go spec/schema.extension.json

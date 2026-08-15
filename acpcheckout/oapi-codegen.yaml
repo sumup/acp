@@ -6,3 +6,8 @@ output-options:
   skip-prune: true
   exclude-schemas:
     - Error
+    - IdempotencyConflict
+    - IdempotencyInFlight
+    - IdempotencyKeyRequired
+  overlay:
+    path: oapi-codegen-overlay.yaml

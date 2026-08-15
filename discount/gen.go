@@ -1,4 +1,3 @@
 package discount
 
-// Types in this package are retained from historical generation.
-// Current schema generation is driven by package-local OpenAPI specs.
+//go:generate go tool go-jsonschema -p discount -o discount_gen.go spec/schema.discount.json

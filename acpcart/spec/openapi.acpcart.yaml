@@ -1,0 +1,1294 @@
+openapi: 3.1.0
+info:
+  title: Agentic Commerce — Cart API
+  version: '2026-04-17'
+  description: >
+    Seller-implemented REST API for pre-checkout cart management.
+
+    Implements create, retrieve (GET), update (POST), and cancel of cart
+    sessions.
+
+
+    Carts provide a lightweight pre-checkout phase for item collection without
+
+    payment configuration or status lifecycle. See rfc.cart.md for the full
+    specification.
+servers:
+  - url: https://seller.example.com
+security:
+  - bearerAuth: []
+tags:
+  - name: Carts
+    description: Create and manage shopping carts
+paths:
+  /carts:
+    post:
+      tags:
+        - Carts
+      summary: Create a cart
+      operationId: createCart
+      description: >
+        Creates a new cart with line items and optional buyer information.
+
+        Returns estimated pricing. No payment configuration or capability
+        negotiation occurs.
+
+
+        When all requested items are unavailable, the seller MAY return a 422
+        error
+
+        instead of creating a cart.
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/ContentType'
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/APIVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartCreateRequest'
+            examples:
+              minimal:
+                summary: Single item
+                value:
+                  line_items:
+                    - id: item_123
+                      quantity: 1
+              with_buyer:
+                summary: Multiple items with buyer
+                value:
+                  line_items:
+                    - id: item_123
+                      quantity: 2
+                    - id: item_456
+                      quantity: 1
+                  buyer:
+                    email: buyer@example.com
+      responses:
+        '201':
+          description: Cart created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+              examples:
+                created:
+                  value:
+                    id: cart_abc123
+                    line_items:
+                      - id: li_1
+                        item:
+                          id: item_123
+                          name: Blue Running Shoes
+                          unit_amount: 12000
+                        quantity: 2
+                        totals:
+                          - type: subtotal
+                            amount: 24000
+                      - id: li_2
+                        item:
+                          id: item_456
+                          name: Athletic Socks (3-pack)
+                          unit_amount: 1500
+                        quantity: 1
+                        totals:
+                          - type: subtotal
+                            amount: 1500
+                    currency: usd
+                    totals:
+                      - type: subtotal
+                        amount: 25500
+                      - type: total
+                        amount: 25500
+                    continue_url: https://seller.example.com/cart/cart_abc123
+                    expires_at: '2026-04-01T12:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Unprocessable — all items unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                out_of_stock:
+                  value:
+                    type: invalid_request
+                    code: out_of_stock
+                    message: All requested items are currently unavailable.
+  /carts/{id}:
+    get:
+      tags:
+        - Carts
+      summary: Get a cart
+      operationId: getCart
+      description: |
+        Retrieves the current state of a cart. Returns 404 if the cart does not
+        exist, has expired, or was canceled.
+      parameters:
+        - $ref: '#/components/parameters/CartId'
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/APIVersion'
+      responses:
+        '200':
+          description: Cart retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/CartNotFound'
+    put:
+      tags:
+        - Carts
+      summary: Update a cart
+      operationId: updateCart
+      description: |
+        Full replacement of the cart. The agent MUST send the complete desired
+        cart state. The provided line_items replace the existing cart contents.
+      parameters:
+        - $ref: '#/components/parameters/CartId'
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/ContentType'
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/APIVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartUpdateRequest'
+            examples:
+              update_quantity:
+                summary: Change quantity and add item
+                value:
+                  line_items:
+                    - id: item_123
+                      quantity: 3
+                    - id: item_789
+                      quantity: 1
+      responses:
+        '200':
+          description: Cart updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/CartNotFound'
+        '422':
+          description: Unprocessable — all items unavailable or currency unresolvable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                out_of_stock:
+                  value:
+                    type: invalid_request
+                    code: out_of_stock
+                    message: All requested items are currently unavailable.
+  /carts/{id}/cancel:
+    post:
+      tags:
+        - Carts
+      summary: Cancel a cart
+      operationId: cancelCart
+      description: |
+        Cancels a cart. The seller MUST return the cart state before deletion.
+        Subsequent operations on this cart ID SHOULD return 404 Not Found.
+      parameters:
+        - $ref: '#/components/parameters/CartId'
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/APIVersion'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Cart canceled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/CartNotFound'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+  parameters:
+    CartId:
+      name: id
+      in: path
+      required: true
+      description: Cart identifier
+      schema:
+        type: string
+        example: cart_abc123
+    Authorization:
+      name: Authorization
+      in: header
+      description: Bearer token for API authentication
+      required: true
+      schema:
+        type: string
+        example: Bearer api_key_123
+    ContentType:
+      name: Content-Type
+      in: header
+      required: true
+      schema:
+        type: string
+        example: application/json
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      schema:
+        type: string
+        example: en-US
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >-
+        Idempotency key. MUST be present on all POST requests. Opaque string,
+        max 255 characters. UUID v4 recommended.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+        example: 550e8400-e29b-41d4-a716-446655440000
+    RequestId:
+      name: Request-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        example: request_id_123
+    APIVersion:
+      name: API-Version
+      in: header
+      required: true
+      schema:
+        type: string
+        example: '2026-04-17'
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            invalid_request:
+              value:
+                type: invalid_request
+                code: missing_line_items
+                message: line_items is required and must contain at least one item
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            unauthorized:
+              value:
+                type: invalid_request
+                code: unauthorized
+                message: Invalid or missing Authorization header
+    CartNotFound:
+      description: Cart not found, expired, or canceled
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            not_found:
+              value:
+                type: invalid_request
+                code: not_found
+                message: Cart not found or has expired.
+  schemas:
+    Cart:
+      description: >-
+        A shopping cart with estimated pricing. Carts provide a lightweight
+        pre-checkout phase for item collection without payment configuration or
+        status lifecycle.
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - line_items
+        - currency
+        - totals
+      properties:
+        id:
+          type: string
+          description: Unique cart identifier, server-generated.
+        line_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineItem'
+          description: Cart line items. Same structure as checkout line items.
+        buyer:
+          $ref: '#/components/schemas/Buyer'
+          description: Buyer information, if provided.
+        currency:
+          type: string
+          description: >-
+            ISO 4217 currency code. Determined by the seller based on context or
+            request.
+        totals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Total'
+          description: >-
+            Estimated cost breakdown. May be partial (e.g., tax omitted if
+            address is unknown). Totals are estimates until checkout.
+        messages:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/MessageInfo'
+              - $ref: '#/components/schemas/MessageWarning'
+              - $ref: '#/components/schemas/MessageError'
+          description: >-
+            Validation messages, warnings, or informational notices (e.g., low
+            stock, price changes).
+        continue_url:
+          type: string
+          format: uri
+          description: URL for cart handoff, sharing, or session recovery.
+        expires_at:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp when the cart expires.
+      example:
+        id: cart_abc123
+        line_items:
+          - id: li_1
+            item:
+              id: item_123
+              name: Blue Running Shoes
+              unit_amount: 12000
+            quantity: 2
+            totals:
+              - type: subtotal
+                amount: 24000
+        currency: usd
+        totals:
+          - type: subtotal
+            amount: 24000
+          - type: total
+            amount: 24000
+        continue_url: https://seller.example.com/cart/cart_abc123
+        expires_at: '2026-04-01T12:00:00Z'
+    CartCreateRequest:
+      description: Request to create a new cart.
+      type: object
+      additionalProperties: false
+      required:
+        - line_items
+      properties:
+        line_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Item'
+          minItems: 1
+          description: Items to add to the cart.
+        buyer:
+          $ref: '#/components/schemas/Buyer'
+          description: Buyer information for personalized estimates.
+        locale:
+          type: string
+          description: Locale code for content localization (e.g., 'en-US').
+      example:
+        line_items:
+          - id: item_123
+            quantity: 2
+          - id: item_456
+            quantity: 1
+        buyer:
+          email: buyer@example.com
+    CartUpdateRequest:
+      description: >-
+        Request to update a cart. Full replacement — the agent MUST send the
+        complete desired cart state.
+      type: object
+      additionalProperties: false
+      required:
+        - line_items
+      properties:
+        line_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Item'
+          minItems: 1
+          description: Complete list of items (replaces existing cart contents).
+        buyer:
+          $ref: '#/components/schemas/Buyer'
+          description: Updated buyer information.
+      example:
+        line_items:
+          - id: item_123
+            quantity: 3
+          - id: item_789
+            quantity: 1
+    Error:
+      type: object
+      additionalProperties: false
+      description: >-
+        Protocol-level error returned in 4xx/5xx responses when the server
+        cannot return a valid CheckoutSession at all (e.g. malformed request or
+        unexpected failure). Use Error—not MessageError—when there is no valid
+        session state to return. type semantics: invalid_request — malformed
+        request, missing required fields, invalid JSON, or idempotency
+        violations (codes: idempotency_key_required, idempotency_in_flight,
+        idempotency_conflict); processing_error — unexpected server-side
+        failure; service_unavailable — temporary unavailability.
+      properties:
+        type:
+          type: string
+          enum:
+            - invalid_request
+            - processing_error
+            - service_unavailable
+          description: Error type indicating the category of protocol-level error
+        code:
+          type: string
+          description: Implementation-defined error code
+        message:
+          type: string
+          description: Human-readable error message
+        param:
+          type: string
+          description: RFC 9535 JSONPath (optional)
+        supported_versions:
+          type: array
+          items:
+            type: string
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            description: Supported API version in YYYY-MM-DD format
+          description: >-
+            List of API versions supported by the server, ordered by preference
+            (newest first). Only included in version-related errors.
+      required:
+        - type
+        - code
+        - message
+      example:
+        type: invalid_request
+        code: invalid_email
+        message: The email address format is invalid
+        param: $.buyer.email
+    Item:
+      description: A purchasable item with variant options (e.g., size, color) and quantity
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the item
+        name:
+          type: string
+          description: Display name of the item
+        unit_amount:
+          type: integer
+          description: >-
+            Price per unit in minor currency units (e.g. 100 cents for $1.00 or
+            100 for ¥100)
+      required:
+        - id
+      example:
+        id: item_123
+        name: Wireless Headphones
+        unit_amount: 7999
+    CompanyInfo:
+      description: Information about a company or organization associated with the buyer
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Company or organization name
+        tax_id:
+          type: string
+          description: Business tax identification number
+        department:
+          type: string
+          description: Department within the organization
+        cost_center:
+          type: string
+          description: Cost center code for internal accounting
+      required:
+        - name
+      example:
+        name: Acme Corporation
+        tax_id: 12-3456789
+        department: Marketing
+        cost_center: CC-2001
+    LoyaltyInfo:
+      description: >-
+        Loyalty program information including membership details and rewards
+        balance
+      type: object
+      additionalProperties: false
+      properties:
+        tier:
+          type: string
+          description: Loyalty program tier level
+        points_balance:
+          type: integer
+          description: Current loyalty points balance
+        member_since:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp when the customer joined the loyalty program
+      example:
+        tier: Gold
+        points_balance: 5000
+        member_since: '2024-01-15T09:00:00Z'
+    TaxExemption:
+      description: >-
+        Tax exemption information including exemption type and applicable
+        regions
+      type: object
+      additionalProperties: false
+      properties:
+        certificate_id:
+          type: string
+          description: Unique identifier for the tax exemption certificate
+        certificate_type:
+          type: string
+          enum:
+            - resale
+            - exempt_organization
+            - government
+          description: Type of tax exemption certificate
+        exempt_regions:
+          type: array
+          items:
+            type: string
+            description: Region code where tax exemption applies (e.g., state abbreviation)
+          description: List of regions where the exemption applies (e.g., state codes)
+        expires_at:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp when the exemption certificate expires
+      required:
+        - certificate_id
+        - certificate_type
+      example:
+        certificate_id: cert_12345
+        certificate_type: resale
+        exempt_regions:
+          - CA
+          - NY
+          - TX
+        expires_at: '2027-12-31T23:59:59Z'
+    Buyer:
+      description: >-
+        Information about the buyer including contact details, company info, and
+        loyalty status
+      type: object
+      additionalProperties: false
+      properties:
+        first_name:
+          type: string
+          description: Buyer's first name
+        last_name:
+          type: string
+          description: Buyer's last name
+        full_name:
+          type: string
+          description: Buyer's full name
+        email:
+          type: string
+          format: email
+          description: Buyer's email address
+        phone_number:
+          type: string
+          description: Buyer's phone number
+        customer_id:
+          type: string
+          description: Merchant's internal customer identifier
+        account_type:
+          type: string
+          enum:
+            - guest
+            - registered
+            - business
+          description: Type of buyer account
+        authentication_status:
+          type: string
+          enum:
+            - authenticated
+            - guest
+            - requires_signin
+          description: Buyer's authentication status
+        company:
+          $ref: '#/components/schemas/CompanyInfo'
+          description: Company information for business buyers
+        loyalty:
+          $ref: '#/components/schemas/LoyaltyInfo'
+          description: Loyalty program information
+        tax_exemption:
+          $ref: '#/components/schemas/TaxExemption'
+          description: Tax exemption details
+      required:
+        - email
+      example:
+        first_name: Sarah
+        last_name: Johnson
+        full_name: Sarah Johnson
+        email: sarah.johnson@example.com
+        phone_number: +1-415-555-0123
+        customer_id: cust_abc123
+        account_type: registered
+        authentication_status: authenticated
+    Disclosure:
+      description: Legal disclosure or terms that must be acknowledged by the buyer
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum:
+            - disclaimer
+          description: Type of disclosure
+        content_type:
+          type: string
+          enum:
+            - plain
+            - markdown
+          description: >-
+            Format of the disclosure content. When set to 'markdown', content
+            MUST conform to CommonMark (https://spec.commonmark.org/0.31.2/).
+            Raw HTML elements MUST NOT be included. When set to 'plain', content
+            is plain text with no formatting.
+        content:
+          type: string
+          description: >-
+            The disclosure text content. When content_type is 'markdown', this
+            MUST be valid CommonMark with no raw HTML. Agents MUST render using
+            a CommonMark-compliant parser with raw HTML output disabled or
+            sanitized.
+      required:
+        - type
+        - content_type
+        - content
+      example:
+        type: disclaimer
+        content_type: plain
+        content: >-
+          This product contains small parts and is not suitable for children
+          under 3 years.
+    CustomAttribute:
+      description: Custom key-value attribute for merchant-specific metadata on line items
+      type: object
+      additionalProperties: false
+      properties:
+        display_name:
+          type: string
+          description: Human-readable label for the attribute
+        value:
+          type: string
+          description: Attribute value
+      required:
+        - display_name
+        - value
+      example:
+        display_name: Engraving
+        value: Happy Birthday!
+    MarketplaceSellerDetails:
+      description: Information about a third-party seller in a marketplace model
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Name of the marketplace seller or vendor
+      required:
+        - name
+      example:
+        name: TechGear Store
+    WeightInfo:
+      description: Product weight with unit of measurement
+      type: object
+      additionalProperties: false
+      properties:
+        value:
+          type: number
+          description: Numeric weight value
+        unit:
+          type: string
+          enum:
+            - g
+            - kg
+            - oz
+            - lb
+          description: Unit of measurement for weight
+      required:
+        - value
+        - unit
+      example:
+        value: 250
+        unit: g
+    DimensionsInfo:
+      description: Physical dimensions of a product with unit of measurement
+      type: object
+      additionalProperties: false
+      properties:
+        length:
+          type: number
+          description: Length dimension
+        width:
+          type: number
+          description: Width dimension
+        height:
+          type: number
+          description: Height dimension
+        unit:
+          type: string
+          enum:
+            - cm
+            - in
+          description: Unit of measurement for dimensions
+      required:
+        - length
+        - width
+        - height
+        - unit
+      example:
+        length: 15.5
+        width: 10.2
+        height: 5.8
+        unit: cm
+    VariantOption:
+      description: >-
+        Represents a single variant option for a product (e.g., size, color,
+        material)
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Variant attribute name (e.g., 'Size', 'Color')
+        value:
+          type: string
+          description: Variant attribute value (e.g., 'Large', 'Blue')
+      required:
+        - name
+        - value
+      example:
+        name: Color
+        value: Midnight Blue
+    DiscountDetail:
+      description: Information about a discount applied to the checkout or a specific item
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          description: Discount code if applicable
+        type:
+          type: string
+          enum:
+            - percentage
+            - fixed
+            - bogo
+            - volume
+          description: Type of discount
+        amount:
+          type: integer
+          description: >-
+            Discount amount in minor currency units (e.g. 100 cents for $1.00 or
+            100 for ¥100)
+        description:
+          type: string
+          description: Human-readable discount description
+        source:
+          type: string
+          enum:
+            - coupon
+            - automatic
+            - loyalty
+          description: Source of the discount
+      required:
+        - type
+        - amount
+      example:
+        code: SAVE20
+        type: percentage
+        amount: 1600
+        description: 20% off your order
+        source: coupon
+    TaxBreakdownItem:
+      description: Breakdown of tax amounts by type, jurisdiction, or rate
+      type: object
+      additionalProperties: false
+      properties:
+        jurisdiction:
+          type: string
+          description: >-
+            Tax jurisdiction name (e.g., 'California State Tax', 'City of San
+            Francisco')
+        rate:
+          type: number
+          description: Tax rate as a decimal (e.g., 0.0875 for 8.75%)
+        amount:
+          type: integer
+          description: >-
+            Tax amount in minor currency units (e.g. 100 cents for $1.00 or 100
+            for ¥100)
+      required:
+        - jurisdiction
+        - rate
+        - amount
+      example:
+        name: State Sales Tax
+        amount: 464
+        rate: 0.08
+    Total:
+      description: >-
+        Total amounts for the checkout including subtotal, discounts, tax,
+        shipping, and final total
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum:
+            - items_base_amount
+            - items_discount
+            - subtotal
+            - discount
+            - fulfillment
+            - tax
+            - fee
+            - gift_wrap
+            - tip
+            - store_credit
+            - total
+            - amount_refunded
+          description: Type of total line item
+        display_text:
+          type: string
+          description: Localized display text for this total
+        amount:
+          type: integer
+          description: >-
+            Amount in minor currency units (e.g. 100 cents for $1.00 or 100 for
+            ¥100)
+        presentment_amount:
+          type: integer
+          description: >-
+            Amount in presentment currency minor units if different from
+            settlement currency
+        description:
+          type: string
+          description: Additional descriptive text for this total
+        breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxBreakdownItem'
+          description: Detailed breakdown for tax totals
+      required:
+        - type
+        - display_text
+        - amount
+      example:
+        currency: usd
+        subtotal: 5800
+        discount: 0
+        tax: 464
+        shipping: 500
+        total: 6764
+    LineItem:
+      description: >-
+        A line item in the checkout representing a product with pricing,
+        discounts, and fulfillment details
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the line item
+        item:
+          $ref: '#/components/schemas/Item'
+          description: Reference to the item being purchased
+        quantity:
+          type: integer
+          minimum: 1
+          description: Number of units for this line item
+        name:
+          type: string
+          description: Display name of the line item
+        description:
+          type: string
+          description: Detailed description of the line item
+        images:
+          type: array
+          items:
+            type: string
+            format: uri
+            description: Image URL for the product
+          description: Array of image URLs for this line item
+        unit_amount:
+          type: integer
+          description: >-
+            The unit price of the line item in the smallest currency unit (e.g.,
+            cents for USD)
+        disclosures:
+          type: array
+          items:
+            $ref: '#/components/schemas/Disclosure'
+          description: Legal disclosures or disclaimers for this item
+        custom_attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomAttribute'
+          description: Custom attributes specific to this line item
+        marketplace_seller_details:
+          $ref: '#/components/schemas/MarketplaceSellerDetails'
+          description: Seller details for marketplace items
+        product_id:
+          type: string
+          description: Merchant's product identifier
+        sku:
+          type: string
+          description: Stock keeping unit identifier
+        variant_id:
+          type: string
+          description: Product variant identifier
+        category:
+          type: string
+          description: Product category
+        tags:
+          type: array
+          items:
+            type: string
+            description: Product tag or category
+          description: Product tags or labels
+        weight:
+          $ref: '#/components/schemas/WeightInfo'
+          description: Weight information for the item
+        dimensions:
+          $ref: '#/components/schemas/DimensionsInfo'
+          description: Dimensions for the item
+        availability_status:
+          type: string
+          enum:
+            - in_stock
+            - low_stock
+            - out_of_stock
+            - backorder
+            - pre_order
+          description: Current availability status of the item
+        available_quantity:
+          type: integer
+          minimum: 0
+          description: Quantity currently available for purchase
+        max_quantity_per_order:
+          type: integer
+          minimum: 1
+          description: Maximum quantity allowed per order
+        fulfillable_on:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp when item becomes available for fulfillment
+        variant_options:
+          type: array
+          items:
+            $ref: '#/components/schemas/VariantOption'
+          description: Selected product variant options (e.g., size, color)
+        discount_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscountDetail'
+          description: Line-item level discount details
+        tax_exempt:
+          type: boolean
+          description: Whether this line item is tax exempt
+        tax_exemption_reason:
+          type: string
+          description: Reason for tax exemption if applicable
+        parent_id:
+          type: string
+          description: Reference to parent line item for bundled products
+        totals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Total'
+          description: >-
+            Line-item level totals breakdown including base_amount, discount,
+            subtotal, tax, and total
+      required:
+        - id
+        - item
+        - quantity
+        - totals
+      example:
+        id: item_001
+        product_id: prod_tshirt_blue_m
+        name: Organic Cotton T-Shirt
+        quantity: 2
+        base_amount: 2900
+        discount: 0
+        subtotal: 5800
+        tax: 464
+        total: 6264
+        currency: usd
+        image_url: https://example.com/images/tshirt-blue.jpg
+    MessageInfo:
+      description: Informational message to display to the buyer during checkout
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          const: info
+          description: Message type discriminator
+        severity:
+          type: string
+          enum:
+            - info
+            - low
+            - medium
+            - high
+            - critical
+          description: Severity level of this informational message
+        resolution:
+          type: string
+          enum:
+            - recoverable
+            - requires_buyer_input
+            - requires_buyer_review
+          description: >-
+            Who resolves this message. 'recoverable': agent can fix via API.
+            'requires_buyer_input': buyer must provide info.
+            'requires_buyer_review': buyer must authorize.
+        param:
+          type: string
+          description: RFC 9535 JSONPath
+        content_type:
+          type: string
+          enum:
+            - plain
+            - markdown
+          description: >-
+            Format of the message content. When set to 'markdown', content MUST
+            conform to CommonMark (https://spec.commonmark.org/0.31.2/). Raw
+            HTML elements MUST NOT be included. When set to 'plain', content is
+            plain text with no formatting.
+        content:
+          type: string
+          description: >-
+            Informational message text. When content_type is 'markdown', this
+            MUST be valid CommonMark with no raw HTML. Agents MUST render using
+            a CommonMark-compliant parser with raw HTML output disabled or
+            sanitized.
+      required:
+        - type
+        - content_type
+        - content
+      example:
+        id: msg_info_01
+        message: Free shipping on orders over $50
+        display_context: banner
+    MessageWarning:
+      description: Warning message to display to the buyer during checkout (non-blocking)
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          const: warning
+          description: Message type discriminator
+        code:
+          type: string
+          enum:
+            - low_stock
+            - high_demand
+            - shipping_delay
+            - price_change
+            - expiring_promotion
+            - limited_availability
+            - discount_code_expired
+            - discount_code_invalid
+            - discount_code_already_applied
+            - discount_code_combination_disallowed
+            - discount_code_minimum_not_met
+            - discount_code_user_not_logged_in
+            - discount_code_user_ineligible
+            - discount_code_usage_limit_reached
+          description: Warning code indicating the type of warning
+        severity:
+          type: string
+          enum:
+            - info
+            - low
+            - medium
+            - high
+            - critical
+          description: Severity level of this warning
+        resolution:
+          type: string
+          enum:
+            - recoverable
+            - requires_buyer_input
+            - requires_buyer_review
+          description: >-
+            Who resolves this message. 'recoverable': agent can fix via API.
+            'requires_buyer_input': buyer must provide info.
+            'requires_buyer_review': buyer must authorize.
+        param:
+          type: string
+          description: RFC 9535 JSONPath
+        content_type:
+          type: string
+          enum:
+            - plain
+            - markdown
+          description: >-
+            Format of the warning message content. When set to 'markdown',
+            content MUST conform to CommonMark
+            (https://spec.commonmark.org/0.31.2/). Raw HTML elements MUST NOT be
+            included. When set to 'plain', content is plain text with no
+            formatting.
+        content:
+          type: string
+          description: >-
+            Warning message text. When content_type is 'markdown', this MUST be
+            valid CommonMark with no raw HTML. Agents MUST render using a
+            CommonMark-compliant parser with raw HTML output disabled or
+            sanitized.
+      required:
+        - type
+        - code
+        - content_type
+        - content
+      example:
+        id: msg_warn_01
+        message: Only 2 items left in stock
+        code: low_stock
+        param: $.items[0]
+    MessageError:
+      type: object
+      additionalProperties: false
+      description: >-
+        Business-logic error within a valid CheckoutSession response. Used in
+        messages[] on 2xx responses when the session is valid but has actionable
+        issues (e.g. status "not_ready_for_payment"). The agent can respond by
+        asking the buyer for corrections or trying alternatives. Use
+        MessageError—not Error—when you can return a valid CheckoutSession and
+        the problem is conversational (e.g. invalid email → code "invalid" and
+        param "$.buyer.email"; out of stock → code "out_of_stock" and param
+        "$.items[0]").
+      properties:
+        type:
+          type: string
+          const: error
+          description: Message type discriminator
+        code:
+          type: string
+          enum:
+            - missing
+            - invalid
+            - out_of_stock
+            - payment_declined
+            - requires_sign_in
+            - requires_3ds
+            - low_stock
+            - quantity_exceeded
+            - coupon_invalid
+            - coupon_expired
+            - minimum_not_met
+            - maximum_exceeded
+            - region_restricted
+            - age_verification_required
+            - approval_required
+            - unsupported
+            - not_found
+            - conflict
+            - rate_limited
+            - expired
+            - intervention_required
+          description: Error code indicating the type of error
+        severity:
+          type: string
+          enum:
+            - info
+            - low
+            - medium
+            - high
+            - critical
+          description: Severity level of this error
+        resolution:
+          type: string
+          enum:
+            - recoverable
+            - requires_buyer_input
+            - requires_buyer_review
+          description: >-
+            Who resolves this message. 'recoverable': agent can fix via API.
+            'requires_buyer_input': buyer must provide info.
+            'requires_buyer_review': buyer must authorize.
+        param:
+          type: string
+          description: RFC 9535 JSONPath
+        content_type:
+          type: string
+          enum:
+            - plain
+            - markdown
+          description: >-
+            Format of the error message content. When set to 'markdown', content
+            MUST conform to CommonMark (https://spec.commonmark.org/0.31.2/).
+            Raw HTML elements MUST NOT be included. When set to 'plain', content
+            is plain text with no formatting.
+        content:
+          type: string
+          description: >-
+            Error message text. When content_type is 'markdown', this MUST be
+            valid CommonMark with no raw HTML. Agents MUST render using a
+            CommonMark-compliant parser with raw HTML output disabled or
+            sanitized.
+      required:
+        - type
+        - code
+        - content_type
+        - content
+      example:
+        id: msg_err_01
+        message: Invalid email address format
+        code: invalid
+        param: $.buyer.email

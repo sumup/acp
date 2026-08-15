@@ -1,0 +1,6 @@
+package: acpcart
+output: acpcart_gen.go
+generate:
+  models: true
+output-options:
+  skip-prune: true

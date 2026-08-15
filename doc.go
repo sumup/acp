@@ -1,28 +1,16 @@
-// Package acp documents the Go SDK for the Agentic Commerce Protocol (ACP).
-// It aggregates the checkout and delegated payment packages under a single module
-// so merchants and PSPs can share common helpers, models, and documentation.
+// Package acp provides shared Agentic Commerce Protocol types and HTTP helpers.
 //
-// # Checkout
+// The protocol-specific packages are:
 //
-// Use [NewCheckoutHandler] with your [CheckoutProvider] implementation to
-// expose the ACP checkout contract over `net/http`. Handler options such as
-// [WithSignatureVerifier] and [WithRequireSignedRequests] enforce the
-// canonical JSON signatures and timestamp skew requirements spelled out in the
-// spec.
+//   - [github.com/sumup/acp/acpcheckout] for seller-hosted checkout sessions;
+//   - [github.com/sumup/acp/acpcart] for seller-hosted carts;
+//   - [github.com/sumup/acp/acppayment] for delegated payment;
+//   - [github.com/sumup/acp/acpauthentication] for delegated 3DS authentication;
+//   - [github.com/sumup/acp/acpfeed] for the agent-hosted Feed API;
+//   - [github.com/sumup/acp/acpdiscovery] for the public discovery document; and
+//   - [github.com/sumup/acp/acpwebhook] for order events and webhook signing.
 //
-// # Delegated Payment
-//
-// Payment service providers can call [NewDelegatedPaymentHandler] with their own
-// [DelegatedPaymentProvider] to accept delegate payment payloads, validate them,
-// and emit vault tokens scoped to a checkout session. Helpers in the
-// [github.com/sumup/acp/acpauth] package and
-// [DelegatedPaymentWithSignatureVerifier] keep bearer-token authorization and
-// signed requests in sync with ACP's security requirements.
-//
-// # How it works
-//
-//   - Buyers check out using their preferred payment method and save it in ChatGPT.
-//   - The delegated payment payload is sent to the merchant’s PSP or vault directly. The delegated payment is single-use and set with allowances.
-//   - The PSP or vault returns a payment token scoped to the delegated payment outside of PCI scope.
-//   - OpenAI forwards the token during the complete-checkout call to enable the merchant to complete the transaction.
+// [APIVersion] identifies the stable ACP specification implemented by this
+// module. HTTP handlers validate that version and make the supported version
+// available in protocol-level version errors.
 package acp

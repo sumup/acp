@@ -46,22 +46,22 @@ func (j *Allocation) UnmarshalJSON(value []byte) error {
 type AppliedDiscount struct {
 	// Breakdown of where this discount was allocated. Sum of allocation amounts
 	// equals total amount.
-	Allocations []Allocation `json:"allocations,omitempty" yaml:"allocations,omitempty" mapstructure:"allocations,omitempty"`
+	Allocations []Allocation `json:"allocations,omitempty,omitzero" yaml:"allocations,omitempty" mapstructure:"allocations,omitempty"`
 
 	// Total discount amount in minor (cents) currency units.
 	Amount int `json:"amount" yaml:"amount" mapstructure:"amount"`
 
 	// True if applied automatically by merchant rules (no code required).
-	Automatic bool `json:"automatic,omitempty" yaml:"automatic,omitempty" mapstructure:"automatic,omitempty"`
+	Automatic bool `json:"automatic,omitempty,omitzero" yaml:"automatic,omitempty" mapstructure:"automatic,omitempty"`
 
 	// The discount code entered by the user. Omitted for automatic discounts.
-	Code *string `json:"code,omitempty" yaml:"code,omitempty" mapstructure:"code,omitempty"`
+	Code *string `json:"code,omitempty,omitzero" yaml:"code,omitempty" mapstructure:"code,omitempty"`
 
 	// Details about the underlying coupon/promotion.
 	Coupon Coupon `json:"coupon" yaml:"coupon" mapstructure:"coupon"`
 
 	// RFC 3339 timestamp when the discount expires.
-	End *time.Time `json:"end,omitempty" yaml:"end,omitempty" mapstructure:"end,omitempty"`
+	End *time.Time `json:"end,omitempty,omitzero" yaml:"end,omitempty" mapstructure:"end,omitempty"`
 
 	// Unique identifier for this applied discount instance.
 	Id string `json:"id" yaml:"id" mapstructure:"id"`
@@ -69,14 +69,14 @@ type AppliedDiscount struct {
 	// Allocation method. 'each' = applied independently per item (allocations
 	// typically included). 'across' = applied to order total (allocations typically
 	// omitted).
-	Method *AppliedDiscountMethod `json:"method,omitempty" yaml:"method,omitempty" mapstructure:"method,omitempty"`
+	Method *AppliedDiscountMethod `json:"method,omitempty,omitzero" yaml:"method,omitempty" mapstructure:"method,omitempty"`
 
 	// Stacking order for discount calculation. Lower numbers applied first (1 =
 	// first).
-	Priority *int `json:"priority,omitempty" yaml:"priority,omitempty" mapstructure:"priority,omitempty"`
+	Priority *int `json:"priority,omitempty,omitzero" yaml:"priority,omitempty" mapstructure:"priority,omitempty"`
 
 	// RFC 3339 timestamp when the discount became active.
-	Start *time.Time `json:"start,omitempty" yaml:"start,omitempty" mapstructure:"start,omitempty"`
+	Start *time.Time `json:"start,omitempty,omitzero" yaml:"start,omitempty" mapstructure:"start,omitempty"`
 }
 
 type AppliedDiscountMethod string
@@ -155,35 +155,35 @@ type CheckoutWithDiscount interface{}
 type Coupon struct {
 	// Fixed discount amount in minor currency units. Mutually exclusive with
 	// percent_off.
-	AmountOff *int `json:"amount_off,omitempty" yaml:"amount_off,omitempty" mapstructure:"amount_off,omitempty"`
+	AmountOff *int `json:"amount_off,omitempty,omitzero" yaml:"amount_off,omitempty" mapstructure:"amount_off,omitempty"`
 
 	// ISO 4217 currency code for amount_off. Required if amount_off is set.
-	Currency *string `json:"currency,omitempty" yaml:"currency,omitempty" mapstructure:"currency,omitempty"`
+	Currency *string `json:"currency,omitempty,omitzero" yaml:"currency,omitempty" mapstructure:"currency,omitempty"`
 
 	// How long the discount applies. 'once' = single use, 'repeating' = multiple
 	// billing periods, 'forever' = indefinitely.
-	Duration *CouponDuration `json:"duration,omitempty" yaml:"duration,omitempty" mapstructure:"duration,omitempty"`
+	Duration *CouponDuration `json:"duration,omitempty,omitzero" yaml:"duration,omitempty" mapstructure:"duration,omitempty"`
 
 	// Number of months the coupon applies if duration is 'repeating'.
-	DurationInMonths *int `json:"duration_in_months,omitempty" yaml:"duration_in_months,omitempty" mapstructure:"duration_in_months,omitempty"`
+	DurationInMonths *int `json:"duration_in_months,omitempty,omitzero" yaml:"duration_in_months,omitempty" mapstructure:"duration_in_months,omitempty"`
 
 	// Unique identifier for the coupon.
 	Id string `json:"id" yaml:"id" mapstructure:"id"`
 
 	// Maximum number of times this coupon can be redeemed across all customers.
-	MaxRedemptions *int `json:"max_redemptions,omitempty" yaml:"max_redemptions,omitempty" mapstructure:"max_redemptions,omitempty"`
+	MaxRedemptions *int `json:"max_redemptions,omitempty,omitzero" yaml:"max_redemptions,omitempty" mapstructure:"max_redemptions,omitempty"`
 
 	// Arbitrary key-value metadata attached to the coupon.
-	Metadata CouponMetadata `json:"metadata,omitempty" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+	Metadata CouponMetadata `json:"metadata,omitempty,omitzero" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
 
 	// Human-readable coupon name (e.g., 'Summer Sale 20% Off').
 	Name string `json:"name" yaml:"name" mapstructure:"name"`
 
 	// Percentage discount (0-100). Mutually exclusive with amount_off.
-	PercentOff *float64 `json:"percent_off,omitempty" yaml:"percent_off,omitempty" mapstructure:"percent_off,omitempty"`
+	PercentOff *float64 `json:"percent_off,omitempty,omitzero" yaml:"percent_off,omitempty" mapstructure:"percent_off,omitempty"`
 
 	// Number of times this coupon has been redeemed.
-	TimesRedeemed *int `json:"times_redeemed,omitempty" yaml:"times_redeemed,omitempty" mapstructure:"times_redeemed,omitempty"`
+	TimesRedeemed *int `json:"times_redeemed,omitempty,omitzero" yaml:"times_redeemed,omitempty" mapstructure:"times_redeemed,omitempty"`
 }
 
 type CouponDuration string
@@ -311,20 +311,20 @@ func (j *DiscountErrorCodes) UnmarshalJSON(value []byte) error {
 type DiscountsRequest struct {
 	// Discount codes to apply. Case-insensitive. Replaces previously submitted codes.
 	// Send empty array to clear.
-	Codes []string `json:"codes,omitempty" yaml:"codes,omitempty" mapstructure:"codes,omitempty"`
+	Codes []string `json:"codes,omitempty,omitzero" yaml:"codes,omitempty" mapstructure:"codes,omitempty"`
 }
 
 // Discount codes input, applied discounts, and rejected codes in checkout
 // responses.
 type DiscountsResponse struct {
 	// Discounts successfully applied (code-based and automatic).
-	Applied []AppliedDiscount `json:"applied,omitempty" yaml:"applied,omitempty" mapstructure:"applied,omitempty"`
+	Applied []AppliedDiscount `json:"applied,omitempty,omitzero" yaml:"applied,omitempty" mapstructure:"applied,omitempty"`
 
 	// Echo of submitted discount codes.
-	Codes []string `json:"codes,omitempty" yaml:"codes,omitempty" mapstructure:"codes,omitempty"`
+	Codes []string `json:"codes,omitempty,omitzero" yaml:"codes,omitempty" mapstructure:"codes,omitempty"`
 
 	// Discount codes that could not be applied, with reasons.
-	Rejected []RejectedDiscount `json:"rejected,omitempty" yaml:"rejected,omitempty" mapstructure:"rejected,omitempty"`
+	Rejected []RejectedDiscount `json:"rejected,omitempty,omitzero" yaml:"rejected,omitempty" mapstructure:"rejected,omitempty"`
 }
 
 // A discount code that could not be applied, with the reason.
@@ -333,7 +333,7 @@ type RejectedDiscount struct {
 	Code string `json:"code" yaml:"code" mapstructure:"code"`
 
 	// Human-readable explanation of why the code was rejected.
-	Message *string `json:"message,omitempty" yaml:"message,omitempty" mapstructure:"message,omitempty"`
+	Message *string `json:"message,omitempty,omitzero" yaml:"message,omitempty" mapstructure:"message,omitempty"`
 
 	// Error code indicating why the discount was rejected.
 	Reason DiscountErrorCodes `json:"reason" yaml:"reason" mapstructure:"reason"`

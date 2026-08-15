@@ -1,0 +1,6 @@
+package: acpauthentication
+output: acpauthentication_gen.go
+generate:
+  models: true
+output-options:
+  skip-prune: true

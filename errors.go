@@ -31,6 +31,8 @@ const (
 	StaleTimestamp         ErrorCode = "stale_timestamp"          // Timestamp skew exceeded the allowed window.
 	MissingAuthorization   ErrorCode = "missing_authorization"    // Authorization header missing.
 	InvalidAuthorization   ErrorCode = "invalid_authorization"    // Authorization header malformed or API key invalid.
+	MissingAPIVersion      ErrorCode = "missing_api_version"      // API-Version header missing.
+	UnsupportedAPIVersion  ErrorCode = "unsupported_api_version"  // API-Version is not supported by this server.
 	RequestNotIdempotent   ErrorCode = "request_not_idempotent"
 	TooManyRequests        ErrorCode = "too_many_requests"
 )

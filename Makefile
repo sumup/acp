@@ -6,15 +6,15 @@ help: ## Show help
 
 .PHONY: fmt
 fmt: ## Format go files
-	golangci-lint fmt --verbose
+	golangci-lint fmt --verbose ./...
 
 .PHONY: lint
 lint: ## Lint go files
-	golangci-lint run --verbose
+	golangci-lint run --verbose ./...
 
 .PHONY: lint-fix
 lint-fix: ## Lint go files and apply auto-fixes
-	golangci-lint run --verbose --fix
+	golangci-lint run --verbose --fix ./...
 
 .PHONY: test
 test: ## Run tests
@@ -34,10 +34,9 @@ vulncheck-sarif: ## Check for Vulnerabilities
 	govulncheck -format=sarif ./... > govulncheck.sarif
 
 .PHONY: generate
-generate: # Generate latest SDK
+generate: ## Generate SDK code from the vendored ACP specifications
 	go generate ./...
 
 .PHONY: install-tools
-install-tools: # Install development dependencies
+install-tools: ## Install standalone development tools
 	go install golang.org/x/vuln/cmd/govulncheck@latest
-	go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest

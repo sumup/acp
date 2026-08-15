@@ -6,7 +6,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sumup/acp"
 	"github.com/sumup/acp/acpauth"
@@ -67,12 +69,16 @@ func (m *Mux) HandleFunc(pattern string, f HandlerFunc, middleware ...Middleware
 	})
 }
 
-// WriteACPError writes err as a JSON response using build to construct the
-// package-specific error payload.
-//
-// The build function receives err's type, code, message, and param values as
-// strings that can be mapped into the caller's error model.
+// WriteACPError writes err as a JSON response with its status and retry headers.
 func WriteACPError(w http.ResponseWriter, err *acp.Error) error {
+	if retryAfter := err.RetryAfter(); retryAfter > 0 {
+		seconds := int64(retryAfter / time.Second)
+		if retryAfter%time.Second != 0 {
+			seconds++
+		}
+		seconds = max(int64(1), seconds)
+		w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
+	}
 	return WriteError(w, err.StatusCode(), err)
 }
 
@@ -139,6 +145,28 @@ func AuthorizationMiddleware(authorizer acpauth.Authorizer) Middleware {
 		}
 		if err := authorizer.Authorize(r.Context(), bearer); err != nil {
 			return err
+		}
+		return next(w, r)
+	}
+}
+
+// IdempotencyMiddleware enforces the ACP Idempotency-Key contract for mutating routes.
+func IdempotencyMiddleware() Middleware {
+	return func(w http.ResponseWriter, r *http.Request, next HandlerFunc) error {
+		requestCtx := acp.RequestContextFromContext(r.Context())
+		if requestCtx == nil {
+			return acp.NewProcessingError("request context is missing")
+		}
+		if requestCtx.IdempotencyKey == "" {
+			return acp.NewHTTPError(
+				http.StatusBadRequest,
+				acp.InvalidRequest,
+				acp.IdempotencyKeyRequired,
+				"Idempotency-Key header is required",
+			)
+		}
+		if len(requestCtx.IdempotencyKey) > 255 {
+			return acp.NewInvalidRequestError("Idempotency-Key header must not exceed 255 characters")
 		}
 		return next(w, r)
 	}

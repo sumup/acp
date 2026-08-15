@@ -134,5 +134,31 @@ func TestRequestContext_validate(t *testing.T) {
 		if acpErr.Message != "API-Version header is required" {
 			t.Fatalf("RequestContextFromRequest() message = %q", acpErr.Message)
 		}
+		if acpErr.Code != MissingAPIVersion {
+			t.Fatalf("RequestContextFromRequest() code = %q", acpErr.Code)
+		}
+		if len(acpErr.SupportedVersions) != 1 || acpErr.SupportedVersions[0] != APIVersion {
+			t.Fatalf("RequestContextFromRequest() supported versions = %#v", acpErr.SupportedVersions)
+		}
+	})
+
+	t.Run("unsupported api version", func(t *testing.T) {
+		t.Parallel()
+
+		req := httptest.NewRequest(http.MethodGet, "/checkout_sessions/cs_123", nil)
+		req.Header.Set("Authorization", "Bearer test-key")
+		req.Header.Set("API-Version", "2026-01-30")
+
+		_, err := RequestContextFromRequest(req)
+		if err == nil {
+			t.Fatal("RequestContextFromRequest() error = nil, want error")
+		}
+		acpErr := err.(*Error)
+		if acpErr.Code != UnsupportedAPIVersion {
+			t.Fatalf("RequestContextFromRequest() code = %q", acpErr.Code)
+		}
+		if len(acpErr.SupportedVersions) != 1 || acpErr.SupportedVersions[0] != APIVersion {
+			t.Fatalf("RequestContextFromRequest() supported versions = %#v", acpErr.SupportedVersions)
+		}
 	})
 }

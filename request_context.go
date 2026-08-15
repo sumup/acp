@@ -39,7 +39,7 @@ type RequestContext struct {
 	Timestamp string
 	// API version.
 	//
-	// Example: 2026-01-30
+	// Example: 2026-04-17
 	APIVersion string
 }
 
@@ -73,10 +73,25 @@ func (r *RequestContext) validate() *Error {
 		return NewInvalidRequestError("request context is required")
 	}
 	if r.APIVersion == "" {
-		return NewInvalidRequestError("API-Version header is required")
+		return NewHTTPError(
+			http.StatusBadRequest,
+			InvalidRequest,
+			MissingAPIVersion,
+			"API-Version header is required",
+			WithSupportedVersions([]string{APIVersion}),
+		)
 	}
 	if parsed, err := time.Parse("2006-01-02", r.APIVersion); err != nil || parsed.Format("2006-01-02") != r.APIVersion {
 		return NewInvalidRequestError("API-Version header must be in YYYY-MM-DD format")
+	}
+	if r.APIVersion != APIVersion {
+		return NewHTTPError(
+			http.StatusBadRequest,
+			InvalidRequest,
+			UnsupportedAPIVersion,
+			"API version is not supported",
+			WithSupportedVersions([]string{APIVersion}),
+		)
 	}
 	return nil
 }

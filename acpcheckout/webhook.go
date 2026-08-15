@@ -5,13 +5,14 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sumup/acp"
 )
@@ -34,14 +35,12 @@ const (
 	EventDataTypeOrder EventDataType = "order"
 )
 
-// OrderLineItem carries the raw line item payload included in order webhook events.
-type OrderLineItem map[string]any
-
-// Fulfillment carries the raw fulfillment payload included in order webhook events.
-type Fulfillment map[string]any
-
-// Adjustment carries the raw adjustment payload included in order webhook events.
-type Adjustment map[string]any
+// OrderStatus is an extensible order lifecycle state.
+//
+// ACP defines common values such as created, confirmed, manual_review,
+// processing, shipped, completed, and canceled. Receivers must accept values
+// added by later protocol versions.
+type OrderStatus string
 
 // EventData is implemented by webhook payloads.
 type EventData interface {
@@ -53,7 +52,7 @@ type OrderCreate struct {
 	// Type is the webhook payload discriminator and is always "order".
 	Type EventDataType `json:"type"`
 	// ID is the order identifier.
-	ID *string `json:"id,omitempty"`
+	ID string `json:"id"`
 	// CheckoutSessionID identifies the checkout session that produced this order.
 	CheckoutSessionID string `json:"checkout_session_id"`
 	// OrderNumber is a human-readable order reference.
@@ -85,7 +84,7 @@ type OrderUpdated struct {
 	// Type is the webhook payload discriminator and is always "order".
 	Type EventDataType `json:"type"`
 	// ID is the order identifier.
-	ID *string `json:"id,omitempty"`
+	ID string `json:"id"`
 	// CheckoutSessionID identifies the checkout session that produced this order.
 	CheckoutSessionID string `json:"checkout_session_id"`
 	// OrderNumber is a human-readable order reference.
@@ -133,24 +132,23 @@ type WebhookSender interface {
 	Send(context.Context, EventData) error
 }
 
-// GetWebhookSender returns a configured [WebhookSender] that delivers webhooks back to the agent.
+// NewWebhookSender returns a configured [WebhookSender] that delivers webhooks back to the agent.
 //
 // Parameters:
 //
-//   - endpoint is the absolute URL provided by OpenAI for receiving webhook events.
-//   - merchantName controls the signature header name (the header name is Merchant_Name-Signature).
-//   - secret is the HMAC secret provided by OpenAI for signing webhook payloads.
-func (h *Handler) GetWebhookSender(endpoint, merchantName string, secret []byte, opts ...WebhookOption) (WebhookSender, error) {
+//   - endpoint is the absolute URL provided by the agent for receiving webhook events.
+//   - secret is the HMAC secret provided by the agent for signing webhook payloads.
+//
+// Deprecated: use package acpwebhook's NewSender with its WebhookEvent for the
+// complete 2026-04-17 order model.
+func NewWebhookSender(endpoint string, secret []byte, opts ...WebhookOption) (WebhookSender, error) {
 	endpointURL, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("parse endpoint url: %w", err)
 	}
-
-	merchantName = strings.TrimSpace(merchantName)
-	if merchantName == "" {
-		return nil, fmt.Errorf("merchant name is required")
+	if !endpointURL.IsAbs() || endpointURL.Host == "" || (endpointURL.Scheme != "http" && endpointURL.Scheme != "https") {
+		return nil, fmt.Errorf("endpoint must be an absolute HTTP(S) URL")
 	}
-	header := fmt.Sprintf("%s-Signature", strings.ReplaceAll(merchantName, " ", "_"))
 
 	if len(secret) == 0 {
 		return nil, fmt.Errorf("secret is required")
@@ -158,24 +156,40 @@ func (h *Handler) GetWebhookSender(endpoint, merchantName string, secret []byte,
 	secretKey := append([]byte(nil), secret...)
 
 	sender := &webhookSender{
-		endpoint:        endpointURL,
-		signatureHeader: header,
-		secret:          secretKey,
-		client:          http.DefaultClient,
+		endpoint: endpointURL,
+		secret:   secretKey,
+		client:   http.DefaultClient,
+		now:      time.Now,
 	}
 
 	for _, opt := range opts {
 		opt(sender)
 	}
+	if sender.client == nil {
+		return nil, fmt.Errorf("HTTP client is required")
+	}
+	if sender.now == nil {
+		return nil, fmt.Errorf("clock is required")
+	}
 
 	return sender, nil
 }
 
+// GetWebhookSender returns a configured [WebhookSender] that delivers webhooks back to the agent.
+//
+// The merchantName argument is retained for source compatibility but is no
+// longer used: ACP 2026-04-17 fixes the header name to Merchant-Signature.
+//
+// Deprecated: use [NewWebhookSender] or package acpwebhook's NewSender.
+func (*Handler) GetWebhookSender(endpoint, _ string, secret []byte, opts ...WebhookOption) (WebhookSender, error) {
+	return NewWebhookSender(endpoint, secret, opts...)
+}
+
 type webhookSender struct {
-	endpoint        *url.URL
-	signatureHeader string
-	secret          []byte
-	client          *http.Client
+	endpoint *url.URL
+	secret   []byte
+	client   *http.Client
+	now      func() time.Time
 }
 
 // Send sends webhook to the configured webhook endpoint.
@@ -193,7 +207,9 @@ func (s *webhookSender) Send(ctx context.Context, data EventData) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("API-Version", acp.APIVersion)
-	req.Header.Set(s.signatureHeader, signWebhookPayload(s.secret, body))
+	timestamp := s.now().UTC()
+	req.Header.Set("Timestamp", timestamp.Format(time.RFC3339))
+	req.Header.Set("Merchant-Signature", signWebhookPayload(s.secret, timestamp.Unix(), body))
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -207,8 +223,11 @@ func (s *webhookSender) Send(ctx context.Context, data EventData) error {
 	return nil
 }
 
-func signWebhookPayload(secret, payload []byte) string {
+func signWebhookPayload(secret []byte, timestamp int64, payload []byte) string {
+	seconds := strconv.FormatInt(timestamp, 10)
 	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write([]byte(seconds))
+	_, _ = mac.Write([]byte("."))
 	_, _ = mac.Write(payload)
-	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return fmt.Sprintf("t=%s,v1=%x", seconds, mac.Sum(nil))
 }

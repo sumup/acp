@@ -12,19 +12,19 @@ import "strings"
 // Registry of core ACP extensions.
 type CoreExtensions struct {
 	// Discount corresponds to the JSON schema field "discount".
-	Discount *CoreExtensionsDiscount `json:"discount,omitempty" yaml:"discount,omitempty" mapstructure:"discount,omitempty"`
+	Discount *CoreExtensionsDiscount `json:"discount,omitempty,omitzero" yaml:"discount,omitempty" mapstructure:"discount,omitempty"`
 }
 
 // Full metadata about an extension for documentation and discovery.
 type CoreExtensionsDiscount struct {
 	// Extensions that this extension depends on.
-	DependsOn []ExtensionIdentifier `json:"depends_on,omitempty" yaml:"depends_on,omitempty" mapstructure:"depends_on,omitempty"`
+	DependsOn []ExtensionIdentifier `json:"depends_on,omitempty,omitzero" yaml:"depends_on,omitempty" mapstructure:"depends_on,omitempty"`
 
 	// Brief description of what the extension provides.
-	Description *string `json:"description,omitempty" yaml:"description,omitempty" mapstructure:"description,omitempty"`
+	Description *string `json:"description,omitempty,omitzero" yaml:"description,omitempty" mapstructure:"description,omitempty"`
 
 	// JSONPath expressions identifying the schema fields added by this extension.
-	Extends []ExtendsTarget `json:"extends,omitempty" yaml:"extends,omitempty" mapstructure:"extends,omitempty"`
+	Extends []ExtendsTarget `json:"extends,omitempty,omitzero" yaml:"extends,omitempty" mapstructure:"extends,omitempty"`
 
 	// Unique identifier for the extension.
 	Id ExtensionIdentifier `json:"id" yaml:"id" mapstructure:"id"`
@@ -33,13 +33,13 @@ type CoreExtensionsDiscount struct {
 	Name string `json:"name" yaml:"name" mapstructure:"name"`
 
 	// URL to the extension JSON Schema.
-	Schema *string `json:"schema,omitempty" yaml:"schema,omitempty" mapstructure:"schema,omitempty"`
+	Schema *string `json:"schema,omitempty,omitzero" yaml:"schema,omitempty" mapstructure:"schema,omitempty"`
 
 	// URL to the extension specification document.
-	Spec *string `json:"spec,omitempty" yaml:"spec,omitempty" mapstructure:"spec,omitempty"`
+	Spec *string `json:"spec,omitempty,omitzero" yaml:"spec,omitempty" mapstructure:"spec,omitempty"`
 
 	// Lifecycle status of the extension.
-	Status *ExtensionMetadataStatus `json:"status,omitempty" yaml:"status,omitempty" mapstructure:"status,omitempty"`
+	Status *ExtensionMetadataStatus `json:"status,omitempty,omitzero" yaml:"status,omitempty" mapstructure:"status,omitempty"`
 
 	AdditionalProperties interface{} `mapstructure:",remain"`
 }
@@ -102,16 +102,16 @@ func (j *ExtendsTarget) UnmarshalJSON(value []byte) error {
 type ExtensionDeclaration struct {
 	// JSONPath expressions identifying the schema fields added by this extension
 	// (e.g., $.CheckoutSession.discounts).
-	Extends []ExtendsTarget `json:"extends,omitempty" yaml:"extends,omitempty" mapstructure:"extends,omitempty"`
+	Extends []ExtendsTarget `json:"extends,omitempty,omitzero" yaml:"extends,omitempty" mapstructure:"extends,omitempty"`
 
 	// Unique identifier for the extension.
 	Name ExtensionIdentifier `json:"name" yaml:"name" mapstructure:"name"`
 
 	// URL to the extension's JSON Schema definition.
-	Schema *string `json:"schema,omitempty" yaml:"schema,omitempty" mapstructure:"schema,omitempty"`
+	Schema *string `json:"schema,omitempty,omitzero" yaml:"schema,omitempty" mapstructure:"schema,omitempty"`
 
 	// URL to the extension's specification document.
-	Spec *string `json:"spec,omitempty" yaml:"spec,omitempty" mapstructure:"spec,omitempty"`
+	Spec *string `json:"spec,omitempty,omitzero" yaml:"spec,omitempty" mapstructure:"spec,omitempty"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -154,13 +154,13 @@ func (j *ExtensionIdentifier) UnmarshalJSON(value []byte) error {
 // Full metadata about an extension for documentation and discovery.
 type ExtensionMetadata struct {
 	// Extensions that this extension depends on.
-	DependsOn []ExtensionIdentifier `json:"depends_on,omitempty" yaml:"depends_on,omitempty" mapstructure:"depends_on,omitempty"`
+	DependsOn []ExtensionIdentifier `json:"depends_on,omitempty,omitzero" yaml:"depends_on,omitempty" mapstructure:"depends_on,omitempty"`
 
 	// Brief description of what the extension provides.
-	Description *string `json:"description,omitempty" yaml:"description,omitempty" mapstructure:"description,omitempty"`
+	Description *string `json:"description,omitempty,omitzero" yaml:"description,omitempty" mapstructure:"description,omitempty"`
 
 	// JSONPath expressions identifying the schema fields added by this extension.
-	Extends []ExtendsTarget `json:"extends,omitempty" yaml:"extends,omitempty" mapstructure:"extends,omitempty"`
+	Extends []ExtendsTarget `json:"extends,omitempty,omitzero" yaml:"extends,omitempty" mapstructure:"extends,omitempty"`
 
 	// Unique identifier for the extension.
 	Id ExtensionIdentifier `json:"id" yaml:"id" mapstructure:"id"`
@@ -169,13 +169,13 @@ type ExtensionMetadata struct {
 	Name string `json:"name" yaml:"name" mapstructure:"name"`
 
 	// URL to the extension JSON Schema.
-	Schema *string `json:"schema,omitempty" yaml:"schema,omitempty" mapstructure:"schema,omitempty"`
+	Schema *string `json:"schema,omitempty,omitzero" yaml:"schema,omitempty" mapstructure:"schema,omitempty"`
 
 	// URL to the extension specification document.
-	Spec *string `json:"spec,omitempty" yaml:"spec,omitempty" mapstructure:"spec,omitempty"`
+	Spec *string `json:"spec,omitempty,omitzero" yaml:"spec,omitempty" mapstructure:"spec,omitempty"`
 
 	// Lifecycle status of the extension.
-	Status *ExtensionMetadataStatus `json:"status,omitempty" yaml:"status,omitempty" mapstructure:"status,omitempty"`
+	Status *ExtensionMetadataStatus `json:"status,omitempty,omitzero" yaml:"status,omitempty" mapstructure:"status,omitempty"`
 
 	AdditionalProperties interface{} `mapstructure:",remain"`
 }
