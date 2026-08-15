@@ -7,6 +7,7 @@ import (
 )
 
 // Authorizer validates a bearer token extracted from the Authorization header.
+// The token does not include the "Bearer" scheme prefix.
 type Authorizer interface {
 	Authorize(ctx context.Context, bearer string) error
 }

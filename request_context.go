@@ -29,11 +29,11 @@ type RequestContext struct {
 	//
 	// Example: request_id_123
 	RequestID string
-	// Base64 encoded signature of the request body.
+	// Optional detached signature used to verify the request body.
 	//
 	// Example: eyJtZX...
 	Signature string
-	// Formatted as an RFC 3339 string.
+	// Optional request-signing timestamp formatted as an RFC 3339 string.
 	//
 	// Example: 2025-09-25T10:30:00Z
 	Timestamp string
@@ -43,6 +43,8 @@ type RequestContext struct {
 	APIVersion string
 }
 
+// RequestContextFromRequest reads the standard ACP headers from r and validates
+// that API-Version identifies the version implemented by this module.
 func RequestContextFromRequest(r *http.Request) (*RequestContext, error) {
 	requestCtx := &RequestContext{
 		Authorization:  strings.TrimSpace(r.Header.Get("Authorization")),
@@ -60,6 +62,8 @@ func RequestContextFromRequest(r *http.Request) (*RequestContext, error) {
 	return requestCtx, nil
 }
 
+// ContextWithRequestContextFromRequest reads and validates ACP headers from r,
+// then returns a child of r.Context containing that metadata.
 func ContextWithRequestContextFromRequest(r *http.Request) (context.Context, error) {
 	requestCtx, err := RequestContextFromRequest(r)
 	if err != nil {
@@ -98,6 +102,10 @@ func (r *RequestContext) validate() *Error {
 
 type requestContextKey struct{}
 
+// ContextWithRequestContext returns a context containing requestCtx.
+//
+// A nil requestCtx leaves ctx unchanged. A nil ctx is replaced with
+// [context.Background].
 func ContextWithRequestContext(ctx context.Context, requestCtx *RequestContext) context.Context {
 	if ctx == nil {
 		ctx = context.Background()

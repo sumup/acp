@@ -1,4 +1,3 @@
-// Package acpdiscovery serves the public ACP well-known discovery document.
 package acpdiscovery
 
 import (

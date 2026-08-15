@@ -42,7 +42,8 @@ type Sender struct {
 	now      func() time.Time
 }
 
-// NewSender validates the endpoint and returns a webhook sender.
+// NewSender returns a webhook sender for an absolute HTTP(S) endpoint.
+// It copies secret before returning.
 func NewSender(endpoint string, secret []byte, opts ...Option) (*Sender, error) {
 	endpointURL, err := url.Parse(endpoint)
 	if err != nil {
@@ -75,7 +76,8 @@ func NewSender(endpoint string, secret []byte, opts ...Option) (*Sender, error) 
 	return sender, nil
 }
 
-// Send posts event using the ACP Merchant-Signature format.
+// Send posts event using the ACP Merchant-Signature format. It returns an
+// error for transport failures and non-2xx responses.
 func (s *Sender) Send(ctx context.Context, event WebhookEvent) error {
 	body, err := json.Marshal(event)
 	if err != nil {

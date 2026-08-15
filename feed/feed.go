@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-// Feed is a collection of products n the ACP product feed.
+// Feed is a collection of products in a legacy pull-based product feed.
 type Feed []*Product
 
-// New creates new feed from a list of products.
+// New creates a feed from products.
 func New(products []*Product) Feed {
 	return Feed(products)
 }
@@ -33,18 +33,18 @@ const (
 	ProductAgeGroupAdult   ProductAgeGroup = "adult"
 )
 
-// Product describes a single product entry in an ACP product feed.
+// Product describes one entry in the legacy pull-based product feed.
 // Field names follow the feed specification for JSONL and CSV export.
 type Product struct {
-	// EnableSearch controls whether the product can be surfaced in ChatGPT search results.
+	// EnableSearch controls whether the product can be surfaced in search results.
 	EnableSearch bool `json:"enable_search" csv:"enable_search"`
-	// EnableCheckout allows direct purchase inside ChatGPT when EnableSearch is true.
+	// EnableCheckout allows direct purchase when EnableSearch is true.
 	EnableCheckout bool `json:"enable_checkout" csv:"enable_checkout"`
 
 	// Basic Product Data
 	//
 	// Provide the core identifiers and descriptive text needed to uniquely reference each product.
-	// These fields establish the canonical record that ChatGPT Search uses to display and link to your product.
+	// These fields establish the canonical record used to display and link to the product.
 
 	// ID is the merchant product identifier and must remain stable over time.
 	//
@@ -152,7 +152,7 @@ type Product struct {
 	// Variants
 	//
 	// Specify variant relationships and distinguishing attributes such as color or size.
-	// These fields allow ChatGPT to group related SKUs and surface variant-specific details.
+	// These fields allow consumers to group related SKUs and surface variant-specific details.
 	//
 	// The item_group_id value should represent how the product is presented on the merchant’s website
 	// (the canonical product page or parent listing shown to customers).
@@ -274,7 +274,7 @@ type Product struct {
 	// Geo Tagging
 	//
 	// Indicate any region-specific pricing or availability overrides
-	//  Geo data allows ChatGPT to present accurate offers and stock status by location.
+	// Geo data allows consumers to present accurate offers and stock status by location.
 
 	// GeoPrice lists country-specific prices using ISO 3166-1 country codes.
 	//

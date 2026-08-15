@@ -8,52 +8,57 @@
 
 </div>
 
-Go SDK for the [Agentic Commerce Protocol](https://github.com/agentic-commerce-protocol/agentic-commerce-protocol) (ACP), targeting the latest stable API version, `2026-04-17`.
+Go SDK for the [Agentic Commerce Protocol](https://github.com/agentic-commerce-protocol/agentic-commerce-protocol) (ACP), targeting the stable API version [`2026-04-17`](https://github.com/agentic-commerce-protocol/agentic-commerce-protocol/tree/main/spec/2026-04-17).
 
-The SDK provides:
+```bash
+go get github.com/sumup/acp
+```
 
-- seller-side HTTP handlers and generated models for Agentic Checkout and Carts;
-- provider-side HTTP handlers and models for Delegated Payment and Delegated Authentication;
-- a typed client and models for the agent-hosted Feed API;
-- a public `/.well-known/acp.json` discovery handler;
-- current order-webhook models and Stripe-style HMAC signing; and
-- legacy CSV and JSONL product-feed encoders for pull-based integrations.
+## Packages
 
-## Examples
+| Package | Use |
+| --- | --- |
+| [`acpcheckout`](https://pkg.go.dev/github.com/sumup/acp/acpcheckout) | Serve seller-hosted checkout sessions. |
+| [`acpcart`](https://pkg.go.dev/github.com/sumup/acp/acpcart) | Serve seller-hosted pre-checkout carts. |
+| [`acppayment`](https://pkg.go.dev/github.com/sumup/acp/acppayment) | Serve delegated payment tokenization. |
+| [`acpauthentication`](https://pkg.go.dev/github.com/sumup/acp/acpauthentication) | Serve delegated 3DS authentication. |
+| [`acpfeed`](https://pkg.go.dev/github.com/sumup/acp/acpfeed) | Call an agent-hosted Feed API. |
+| [`acpdiscovery`](https://pkg.go.dev/github.com/sumup/acp/acpdiscovery) | Serve `/.well-known/acp.json`. |
+| [`acpwebhook`](https://pkg.go.dev/github.com/sumup/acp/acpwebhook) | Send signed order lifecycle events. |
+| [`acpauth`](https://pkg.go.dev/github.com/sumup/acp/acpauth) | Implement bearer-token authorization. |
+| [`signature`](https://pkg.go.dev/github.com/sumup/acp/signature) | Verify optional signed ACP requests. |
+| [`discount`](https://pkg.go.dev/github.com/sumup/acp/discount), [`extension`](https://pkg.go.dev/github.com/sumup/acp/extension) | Use generated extension models. |
 
-- [`examples/checkout`](examples/checkout) sample checkout provider implementation.
-- [`examples/delegated_payment`](examples/delegated_payment) sample PSP (payments service provider) implementation for Delegated Payment.
-- [`examples/feed`](examples/feed) sample Product Feed that for exporting feeds in JSONL and CSV formats.
+The older [`feed`](https://pkg.go.dev/github.com/sumup/acp/feed) package only supports legacy pull-based CSV and JSONL feeds. New integrations should use `acpfeed`, where merchants push products to an agent-hosted API.
 
-### Checkout Sample
+## Server handlers
+
+The checkout, cart, payment, and authentication packages expose a `Provider` interface and a `net/http` handler. Implement the interface, supply an `acpauth.Authorizer`, and mount the handler directly or into an existing `http.ServeMux` with `WithServeMux`.
+
+These handlers validate JSON payloads and ACP headers. Send `API-Version: 2026-04-17` and `Authorization: Bearer <token>` on authenticated service requests. Mutating checkout, cart, and delegated-payment requests also require `Idempotency-Key`; the OpenAPI definitions describe endpoint-specific exceptions. Discovery is public and does not use those headers.
+
+### Checkout example
+
+Run the in-memory example:
 
 ```bash
 go run ./examples/checkout
 ```
 
-Once the server is up, try exercising the flow with `curl`:
+Create and complete a session with spec-valid minimal payloads:
 
 ```bash
-# Create a checkout session with two SKUs
 curl -sS -X POST http://localhost:8080/checkout_sessions \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer demo-key' \
   -H 'API-Version: 2026-04-17' \
   -H 'Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000' \
   -d '{
-        "line_items": [
-          {"id": "latte"},
-          {"id": "mug"}
-        ],
-        "currency": "EUR",
-        "buyer": {
-          "first_name": "Ava",
-          "last_name": "Agent",
-          "email": "ava.agent@example.com"
-        }
+        "line_items": [{"id": "latte"}],
+        "currency": "eur",
+        "capabilities": {}
       }'
 
-# Complete the session once you have the id from the response above
 curl -sS -X POST http://localhost:8080/checkout_sessions/<session_id>/complete \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer demo-key' \
@@ -61,21 +66,22 @@ curl -sS -X POST http://localhost:8080/checkout_sessions/<session_id>/complete \
   -H 'Idempotency-Key: 550e8400-e29b-41d4-a716-446655440001' \
   -d '{
         "payment_data": {
-          "provider": "sumup",
-          "token": "pm_sample_token"
+          "handler_id": "card_tokenized",
+          "instrument": {
+            "type": "card",
+            "credential": {"type": "spt", "token": "spt_demo"}
+          }
         }
       }'
 ```
 
-Feel free to copy this sample into your own project and swap the in-memory store for your real product catalog, fulfillment rules, and payment hooks. Use `acpwebhook.NewSender` to deliver full order events with the `Merchant-Signature` format defined by ACP `2026-04-17`.
-
-### Delegated Payment Sample
+### Delegated payment example
 
 ```bash
 go run ./examples/delegated_payment
 ```
 
-Then call it with:
+In another terminal:
 
 ```bash
 curl -sS -X POST http://localhost:8080/agentic_commerce/delegate_payment \
@@ -97,26 +103,51 @@ curl -sS -X POST http://localhost:8080/agentic_commerce/delegate_payment \
         "allowance": {
           "reason": "one_time",
           "max_amount": 2000,
-          "currency": "EUR",
+          "currency": "eur",
           "checkout_session_id": "cs_000001",
           "merchant_id": "demo-merchant",
           "expires_at": "2027-12-31T23:59:59Z"
         },
-        "risk_signals": [
-          {"type": "card_testing", "action": "manual_review", "score": 10}
-        ],
+        "risk_signals": [],
         "metadata": {"source": "sample"}
       }'
 ```
 
-### Product Feed Sample
+## Feed client
 
-```bash
-go run ./examples/feed
+The stable Feed API is hosted by agents and called by merchants. It is a push model: merchants create feed metadata and partially upsert products by `Product.id`.
+
+```go
+country := "US"
+client, err := acpfeed.NewClientWithResponses(agentURL)
+if err != nil {
+	return err
+}
+
+response, err := client.CreateFeedWithResponse(ctx, acpfeed.CreateFeedRequest{
+	TargetCountry: &country,
+})
+if err != nil {
+	return err
+}
+if response.JSON201 == nil {
+	return fmt.Errorf("create feed: %s", response.Status())
+}
 ```
 
-This writes compressed legacy feed exports to `examples/feed/output/product_feed.jsonl.gz` and `examples/feed/output/product_feed.csv.gz`. For the stable push-based Feed API, use `acpfeed.NewClientWithResponses`.
+See the executable examples on [pkg.go.dev](https://pkg.go.dev/github.com/sumup/acp) for discovery, webhooks, request signing, and feed upserts. The standalone legacy feed exporter remains at [`examples/feed`](examples/feed).
+
+## Development
+
+Generated files are built from the vendored stable ACP specifications. Edit the specs or generator configuration, then run:
+
+```bash
+make generate
+make fmt
+make lint
+make test
+```
 
 ## License
 
-[Apache 2.0](/LICENSE)
+[Apache 2.0](./LICENSE)

@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sumup/acp/feed"
+	"github.com/sumup/acp/feed" //nolint:staticcheck // This example intentionally demonstrates the legacy feed format.
 )
 
 func main() {

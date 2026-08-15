@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// csvHeader defines the ordered CSV column list for ACP feeds.
+// csvHeader defines the ordered CSV column list for legacy feeds.
 var csvHeader = []string{
 	"enable_search",
 	"enable_checkout",
@@ -224,7 +224,7 @@ func (w *CSVGzWriter) Close() error {
 	return errors.Join(w.err, closeErr)
 }
 
-// CSVReadSeq reads products from an ACP CSV feed.
+// CSVReadSeq reads products from a legacy CSV feed.
 func CSVReadSeq(r io.Reader) iter.Seq[Result] {
 	return func(yield func(Result) bool) {
 		reader := csv.NewReader(r)
@@ -269,7 +269,7 @@ func CSVReadSeq(r io.Reader) iter.Seq[Result] {
 	}
 }
 
-// CSVGzReadSeq reads products from a gzip-compressed ACP CSV feed.
+// CSVGzReadSeq reads products from a gzip-compressed legacy CSV feed.
 func CSVGzReadSeq(r io.Reader) iter.Seq[Result] {
 	return func(yield func(Result) bool) {
 		gz, err := gzip.NewReader(r)

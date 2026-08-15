@@ -4,6 +4,8 @@ generate:
   models: true
 output-options:
   skip-prune: true
+  user-templates:
+    imports.tmpl: ../internal/oapi-codegen/imports.tmpl
   exclude-schemas:
     - Error
     - IdempotencyConflict

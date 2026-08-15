@@ -67,7 +67,7 @@ func (w *JSONLGzWriter) Close() error {
 	return errors.Join(w.err, closeErr)
 }
 
-// JSONLReadSeq reads products from an ACP JSON Lines feed.
+// JSONLReadSeq reads products from a legacy JSON Lines feed.
 func JSONLReadSeq(r io.Reader) iter.Seq[Result] {
 	return func(yield func(Result) bool) {
 		dec := json.NewDecoder(r)
@@ -87,7 +87,7 @@ func JSONLReadSeq(r io.Reader) iter.Seq[Result] {
 	}
 }
 
-// JSONLGzReadSeq reads products from a gzip-compressed ACP JSON Lines feed.
+// JSONLGzReadSeq reads products from a gzip-compressed legacy JSON Lines feed.
 func JSONLGzReadSeq(r io.Reader) iter.Seq[Result] {
 	return func(yield func(Result) bool) {
 		gz, err := gzip.NewReader(r)
