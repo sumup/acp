@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/sumup/acp/compare/v0.1.0...v0.1.1) (2026-08-21)
+
+
+### Bug Fixes
+
+* release config ([608bc89](https://github.com/sumup/acp/commit/608bc89a69d0caf51aaf2533f8e05c2563ab5dc0))
+
 ## [0.1.0](https://github.com/sumup/acp/compare/v0.0.1...v0.1.0) (2026-08-15)
 
 
