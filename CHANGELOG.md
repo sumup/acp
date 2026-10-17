@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/sumup/acp/compare/v0.1.0...v0.2.0) (2026-10-17)
+
+
+### Features
+
+* improve testing setup ([1084063](https://github.com/sumup/acp/commit/1084063291c85c337c4259b94617fd232b5f017c))
+
+
+### Bug Fixes
+
+* release config ([608bc89](https://github.com/sumup/acp/commit/608bc89a69d0caf51aaf2533f8e05c2563ab5dc0))
+
 ## [0.1.0](https://github.com/sumup/acp/compare/v0.0.1...v0.1.0) (2026-08-15)
 
 
