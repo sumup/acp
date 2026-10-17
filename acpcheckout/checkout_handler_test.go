@@ -8,10 +8,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"go.uber.org/mock/gomock"
+
 	"github.com/sumup/acp"
 	"github.com/sumup/acp/acpauth"
 	"github.com/sumup/acp/acpcheckout"
-	"go.uber.org/mock/gomock"
 )
 
 func TestCheckoutHandler_Create(t *testing.T) {
@@ -46,7 +47,7 @@ func TestCheckoutHandler_Create(t *testing.T) {
 	h := acpcheckout.NewHandler(mockProvider, acpauth.StaticTokenAuthorizer("test-key"))
 
 	body := []byte(`{"capabilities":{},"currency":"USD","line_items":[{"id":"sku_1"}]}`)
-	req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer test-key")
 	req.Header.Set("API-Version", acp.APIVersion)
@@ -83,7 +84,7 @@ func TestCheckoutHandler_WithServeMux(t *testing.T) {
 
 	h := acpcheckout.NewHandler(mockProvider, acpauth.StaticTokenAuthorizer("test-key"), acpcheckout.WithServeMux(mux))
 
-	healthReq := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	healthReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 	healthRec := httptest.NewRecorder()
 	h.ServeHTTP(healthRec, healthReq)
 
@@ -92,7 +93,7 @@ func TestCheckoutHandler_WithServeMux(t *testing.T) {
 	}
 
 	checkoutBody := []byte(`{"capabilities":{},"currency":"USD","line_items":[{"id":"sku_1"}]}`)
-	checkoutReq := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(checkoutBody))
+	checkoutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/checkout_sessions", bytes.NewReader(checkoutBody))
 	checkoutReq.Header.Set("Content-Type", "application/json")
 	checkoutReq.Header.Set("Authorization", "Bearer test-key")
 	checkoutReq.Header.Set("API-Version", acp.APIVersion)
@@ -117,7 +118,7 @@ func TestCheckoutHandler(t *testing.T) {
 		h := acpcheckout.NewHandler(NewMockProvider(ctrl), acpauth.StaticTokenAuthorizer("test-key"))
 
 		body := []byte(`{"capabilities":{},"currency":"USD","line_items":[{"id":"sku_1"}]}`)
-		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("API-Version", acp.APIVersion)
 		rec := httptest.NewRecorder()
@@ -145,7 +146,7 @@ func TestCheckoutHandler(t *testing.T) {
 		h := acpcheckout.NewHandler(NewMockProvider(ctrl), acpauth.StaticTokenAuthorizer("test-key"))
 
 		body := []byte(`{"capabilities":{},"currency":"USD","line_items":[]}`)
-		req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/checkout_sessions", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer test-key")
 		req.Header.Set("API-Version", acp.APIVersion)

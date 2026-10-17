@@ -1,7 +1,6 @@
 package acpauth_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/sumup/acp"
@@ -13,11 +12,11 @@ func TestStaticTokenAuthorizer(t *testing.T) {
 
 	authorizer := acpauth.StaticTokenAuthorizer("test-key")
 
-	if err := authorizer.Authorize(context.Background(), "test-key"); err != nil {
+	if err := authorizer.Authorize(t.Context(), "test-key"); err != nil {
 		t.Fatalf("Authorize() error = %v", err)
 	}
 
-	err := authorizer.Authorize(context.Background(), "wrong-key")
+	err := authorizer.Authorize(t.Context(), "wrong-key")
 	if err == nil {
 		t.Fatal("Authorize() error = nil, want error")
 	}

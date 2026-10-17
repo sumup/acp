@@ -1,0 +1,16 @@
+version: "2"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/sumup/acp
+
+linters:
+  default: standard
+  enable:
+    - thelper
+    - tparallel

@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/mock/gomock"
+
 	"github.com/sumup/acp"
 	"github.com/sumup/acp/acpauth"
 	"github.com/sumup/acp/acppayment"
-	"go.uber.org/mock/gomock"
 )
 
 func TestDelegatedPaymentHandler_Create(t *testing.T) {
@@ -44,7 +45,7 @@ func TestDelegatedPaymentHandler_Create(t *testing.T) {
 	h := acppayment.NewHandler(mockProvider, acpauth.StaticTokenAuthorizer("test-key"))
 
 	body := []byte(`{"payment_method":{"type":"card","card_number_type":"fpan","number":"4242424242424242","display_card_funding_type":"credit","metadata":{}},"allowance":{"reason":"one_time","max_amount":1000,"currency":"usd","checkout_session_id":"cs_1","merchant_id":"m_1","expires_at":"2026-12-31T00:00:00Z"},"risk_signals":[{"type":"card_testing","action":"authorized","score":0}],"metadata":{}}`)
-	req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer test-key")
 	req.Header.Set("API-Version", acp.APIVersion)
@@ -69,7 +70,7 @@ func TestDelegatedPaymentHandler(t *testing.T) {
 		h := acppayment.NewHandler(NewMockProvider(ctrl), acpauth.StaticTokenAuthorizer("test-key"))
 
 		body := []byte(`{"payment_method":{"type":"card","card_number_type":"fpan","number":"4242424242424242","display_card_funding_type":"credit","metadata":{}},"allowance":{"reason":"one_time","max_amount":1000,"currency":"usd","checkout_session_id":"cs_1","merchant_id":"m_1","expires_at":"2026-12-31T00:00:00Z"},"risk_signals":[{"type":"card_testing","action":"authorized","score":0}],"metadata":{}}`)
-		req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("API-Version", acp.APIVersion)
 		rec := httptest.NewRecorder()
@@ -100,7 +101,7 @@ func TestDelegatedPaymentHandler(t *testing.T) {
 		h := acppayment.NewHandler(NewMockProvider(ctrl), acpauth.StaticTokenAuthorizer("test-key"))
 
 		body := []byte(`{"payment_method":{"type":"card","card_number_type":"fpan","number":"4242424242424242","display_card_funding_type":"credit","display_last4":"42","metadata":{}},"allowance":{"reason":"one_time","max_amount":1000,"currency":"usd","checkout_session_id":"cs_1","merchant_id":"m_1","expires_at":"2026-12-31T00:00:00Z"},"risk_signals":[{"type":"card_testing","action":"authorized","score":0}],"metadata":{}}`)
-		req := httptest.NewRequest(http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/agentic_commerce/delegate_payment", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer test-key")
 		req.Header.Set("API-Version", acp.APIVersion)

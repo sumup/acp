@@ -1,7 +1,6 @@
 package acpfeed
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -24,8 +23,7 @@ func TestClientCreateFeed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClientWithResponses() error = %v", err)
 	}
-	country := "US"
-	response, err := client.CreateFeedWithResponse(context.Background(), CreateFeedRequest{TargetCountry: &country})
+	response, err := client.CreateFeedWithResponse(t.Context(), CreateFeedRequest{TargetCountry: new("US")})
 	if err != nil {
 		t.Fatalf("CreateFeedWithResponse() error = %v", err)
 	}

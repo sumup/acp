@@ -28,18 +28,11 @@ func WithHTTPClient(client *http.Client) Option {
 	}
 }
 
-func withClock(now func() time.Time) Option {
-	return func(s *Sender) {
-		s.now = now
-	}
-}
-
 // Sender delivers signed ACP order webhook events to an agent endpoint.
 type Sender struct {
 	endpoint *url.URL
 	secret   []byte
 	client   *http.Client
-	now      func() time.Time
 }
 
 // NewSender returns a webhook sender for an absolute HTTP(S) endpoint.
@@ -58,9 +51,8 @@ func NewSender(endpoint string, secret []byte, opts ...Option) (*Sender, error) 
 
 	sender := &Sender{
 		endpoint: endpointURL,
-		secret:   append([]byte(nil), secret...),
+		secret:   bytes.Clone(secret),
 		client:   http.DefaultClient,
-		now:      time.Now,
 	}
 	for _, opt := range opts {
 		if opt != nil {
@@ -69,9 +61,6 @@ func NewSender(endpoint string, secret []byte, opts ...Option) (*Sender, error) 
 	}
 	if sender.client == nil {
 		return nil, errors.New("webhook: HTTP client is required")
-	}
-	if sender.now == nil {
-		return nil, errors.New("webhook: clock is required")
 	}
 	return sender, nil
 }
@@ -84,7 +73,7 @@ func (s *Sender) Send(ctx context.Context, event WebhookEvent) error {
 		return fmt.Errorf("webhook: marshal event: %w", err)
 	}
 
-	timestamp := s.now().Unix()
+	timestamp := time.Now().Unix()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.endpoint.String(), bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("webhook: build request: %w", err)

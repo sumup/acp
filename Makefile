@@ -18,7 +18,21 @@ lint-fix: ## Lint go files and apply auto-fixes
 
 .PHONY: test
 test: ## Run tests
-	go test -v -failfast -race -timeout 10m ./...
+	go test -race -shuffle=on -timeout 2m ./...
+
+.PHONY: vet
+vet: ## Run Go static analysis
+	go vet ./...
+
+.PHONY: tidy-check
+tidy-check: ## Check module tidiness without modifying files
+	go mod tidy -diff
+
+.PHONY: generate-check
+generate-check: generate ## Check that generated code is up to date
+	git diff --exit-code -- '*_gen.go' '*_mock_test.go' go.mod go.sum
+	@test -z "$$(git ls-files --others --exclude-standard -- '*_gen.go' '*_mock_test.go')" || \
+		(echo 'Generated files are untracked; add them to the repository.'; exit 1)
 
 .PHONY: download
 download:

@@ -1,7 +1,6 @@
 package acp
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,7 +9,7 @@ import (
 func TestRequestContextFromRequest(t *testing.T) {
 	t.Parallel()
 
-	req := httptest.NewRequest(http.MethodPost, "/checkout_sessions", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/checkout_sessions", nil)
 	req.Header.Set("Authorization", " Bearer api_key ")
 	req.Header.Set("Accept-Language", "en-US")
 	req.Header.Set("User-Agent", "acp-test/1.0")
@@ -56,7 +55,7 @@ func TestRequestContextRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	requestCtx := &RequestContext{Authorization: "Bearer 123"}
-	ctx := ContextWithRequestContext(context.Background(), requestCtx)
+	ctx := ContextWithRequestContext(t.Context(), requestCtx)
 	got := RequestContextFromContext(ctx)
 	if got == nil {
 		t.Fatalf("expected request context on context")
@@ -64,7 +63,7 @@ func TestRequestContextRoundTrip(t *testing.T) {
 	if got.Authorization != "Bearer 123" {
 		t.Fatalf("unexpected authorization %q", got.Authorization)
 	}
-	if RequestContextFromContext(context.Background()) != nil {
+	if RequestContextFromContext(t.Context()) != nil {
 		t.Fatalf("expected nil when request context not set")
 	}
 }
@@ -75,7 +74,7 @@ func TestRequestContext_validate(t *testing.T) {
 	t.Run("valid request", func(t *testing.T) {
 		t.Parallel()
 
-		req := httptest.NewRequest(http.MethodGet, "/checkout_sessions/cs_123", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/checkout_sessions/cs_123", nil)
 		req.Header.Set("Authorization", "Bearer test-key")
 		req.Header.Set("API-Version", APIVersion)
 
@@ -91,7 +90,7 @@ func TestRequestContext_validate(t *testing.T) {
 	t.Run("missing authorization", func(t *testing.T) {
 		t.Parallel()
 
-		req := httptest.NewRequest(http.MethodGet, "/checkout_sessions/cs_123", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/checkout_sessions/cs_123", nil)
 		req.Header.Set("API-Version", APIVersion)
 
 		ctx, err := RequestContextFromRequest(req)
@@ -106,7 +105,7 @@ func TestRequestContext_validate(t *testing.T) {
 	t.Run("invalid api version format", func(t *testing.T) {
 		t.Parallel()
 
-		req := httptest.NewRequest(http.MethodGet, "/checkout_sessions/cs_123", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/checkout_sessions/cs_123", nil)
 		req.Header.Set("Authorization", "Bearer test-key")
 		req.Header.Set("API-Version", "20260130")
 
@@ -123,7 +122,7 @@ func TestRequestContext_validate(t *testing.T) {
 	t.Run("missing api version", func(t *testing.T) {
 		t.Parallel()
 
-		req := httptest.NewRequest(http.MethodGet, "/checkout_sessions/cs_123", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/checkout_sessions/cs_123", nil)
 		req.Header.Set("Authorization", "Bearer test-key")
 
 		_, err := RequestContextFromRequest(req)
@@ -145,7 +144,7 @@ func TestRequestContext_validate(t *testing.T) {
 	t.Run("unsupported api version", func(t *testing.T) {
 		t.Parallel()
 
-		req := httptest.NewRequest(http.MethodGet, "/checkout_sessions/cs_123", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/checkout_sessions/cs_123", nil)
 		req.Header.Set("Authorization", "Bearer test-key")
 		req.Header.Set("API-Version", "2026-01-30")
 

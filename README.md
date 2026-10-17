@@ -35,6 +35,8 @@ The checkout, cart, payment, and authentication packages expose a `Provider` int
 
 These handlers validate JSON payloads and ACP headers. Send `API-Version: 2026-04-17` and `Authorization: Bearer <token>` on authenticated service requests. Mutating checkout, cart, and delegated-payment requests also require `Idempotency-Key`; the OpenAPI definitions describe endpoint-specific exceptions. Discovery is public and does not use those headers.
 
+Providers own persistence, idempotent replay, and conflicts between concurrent requests. The handlers require the idempotency header and pass it through `acp.RequestContext`; they do not store or replay responses.
+
 ### Checkout example
 
 Run the in-memory example:
@@ -137,14 +139,20 @@ See the executable examples on [pkg.go.dev](https://pkg.go.dev/github.com/sumup/
 
 ## Development
 
-Generated files are built from the vendored stable ACP specifications. Edit the specs or generator configuration, then run:
+The vendored specs were checked against upstream's stable `spec/2026-04-17/` snapshot at [commit `7fdd78d`](https://github.com/agentic-commerce-protocol/agentic-commerce-protocol/tree/7fdd78df677a94dce04c770644b0fbbb1401272b/spec/2026-04-17). Cart and webhook specifications bundle upstream cross-file references into local components. Unreleased schema changes are excluded. The discovery helper follows the separate [discovery proposal](https://github.com/agentic-commerce-protocol/agentic-commerce-protocol/blob/7fdd78df677a94dce04c770644b0fbbb1401272b/rfcs/rfc.discovery.md).
+
+Generated models and gomock providers use the pinned Go tools in `go.mod`. Edit the specs, provider interfaces, or generator configuration, then run:
 
 ```bash
 make generate
 make fmt
 make lint
 make test
+make vet
+make tidy-check
 ```
+
+Tests use isolated parallel cases, `t.Context()`, and `testing/synctest` for time-dependent behavior. Real HTTP tests and executable examples use local `httptest` servers. CI runs race-enabled tests in shuffled order on Go 1.26.6 (the module minimum) and Go 1.27, and checks module tidiness and generated-code consistency. Run `make generate-check` on a clean checkout to reproduce the generation check.
 
 ## License
 

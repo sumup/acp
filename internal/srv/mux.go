@@ -30,9 +30,7 @@ type Mux struct {
 	*http.ServeMux
 }
 
-// NewMux returns a [Mux] that dispatches handler errors to handleError.
-//
-// It panics if handleError is nil.
+// NewMux returns a [Mux] that translates handler errors to ACP JSON responses.
 func NewMux(mux *http.ServeMux) *Mux {
 	return &Mux{
 		ServeMux: cmp.Or(mux, http.NewServeMux()),
@@ -41,9 +39,8 @@ func NewMux(mux *http.ServeMux) *Mux {
 
 // HandleFunc registers pattern with a handler that may return an error.
 //
-// If the handler returns a non-nil error, the mux forwards it to the
-// [ErrorHandler] provided to [NewMux]. Middleware is applied in the order it is
-// provided.
+// If the handler returns a non-nil error, the mux writes an ACP error response.
+// Middleware is applied in the order it is provided.
 func (m *Mux) HandleFunc(pattern string, f HandlerFunc, middleware ...Middleware) {
 	for i := len(middleware) - 1; i >= 0; i-- {
 		next := f
@@ -92,13 +89,16 @@ func WriteError(w http.ResponseWriter, status int, payload any) error {
 
 // WriteJSON writes payload as JSON with ACP response headers and status.
 //
-// If the request includes an Idempotency-Key header, WriteJSON echoes it back
-// in the response. A nil payload writes headers and status without a body.
+// WriteJSON echoes the request's Idempotency-Key and Request-Id headers when
+// present. A nil payload writes headers and status without a body.
 func WriteJSON(w http.ResponseWriter, r *http.Request, status int, payload any) error {
 	w.Header().Set("API-Version", acp.APIVersion)
 	w.Header().Set("Content-Type", "application/json")
 	if key := r.Header.Get("Idempotency-Key"); key != "" {
 		w.Header().Set("Idempotency-Key", key)
+	}
+	if id := r.Header.Get("Request-Id"); id != "" {
+		w.Header().Set("Request-Id", id)
 	}
 	w.WriteHeader(status)
 	if payload != nil {
@@ -113,14 +113,20 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, status int, payload any) 
 // It returns an error if the body is empty, contains invalid JSON, or contains
 // extra trailing JSON data after the first value.
 func DecodeJSON(body io.ReadCloser, v any) error {
+	if body == nil {
+		return io.EOF
+	}
 	defer func() { _ = body.Close() }()
 
 	dec := json.NewDecoder(body)
 	if err := dec.Decode(v); err != nil {
 		return err
 	}
-	if dec.More() {
+	var extra any
+	if err := dec.Decode(&extra); err == nil {
 		return errors.New("unexpected data after JSON body")
+	} else if !errors.Is(err, io.EOF) {
+		return err
 	}
 
 	return nil

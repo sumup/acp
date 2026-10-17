@@ -93,8 +93,11 @@ func CanonicalizeJSONBody(raw []byte) ([]byte, error) {
 	if err := dec.Decode(&payload); err != nil {
 		return nil, err
 	}
-	if dec.More() {
+	var extra any
+	if err := dec.Decode(&extra); err == nil {
 		return nil, errors.New("signature: multiple JSON documents in body")
+	} else if !errors.Is(err, io.EOF) {
+		return nil, err
 	}
 	return canonicaljson.Marshal(payload)
 }

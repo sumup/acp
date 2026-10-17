@@ -1,7 +1,6 @@
 package signature
 
 import (
-	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -15,7 +14,7 @@ import (
 func TestReadAndBufferBody(t *testing.T) {
 	t.Parallel()
 
-	req := httptest.NewRequest("POST", "/checkout_sessions", strings.NewReader(`{"a":1}`))
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/checkout_sessions", strings.NewReader(`{"a":1}`))
 
 	raw, err := ReadAndBufferBody(req)
 	if err != nil {
@@ -37,7 +36,7 @@ func TestReadAndBufferBody(t *testing.T) {
 func TestReadAndBufferBodyNilBody(t *testing.T) {
 	t.Parallel()
 
-	req := httptest.NewRequest("POST", "/checkout_sessions", nil)
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/checkout_sessions", nil)
 	req.Body = nil
 
 	raw, err := ReadAndBufferBody(req)
@@ -75,6 +74,16 @@ func TestCanonicalizeJSONBody(t *testing.T) {
 			name:    "multiple documents rejected",
 			raw:     "{}{}",
 			wantErr: "multiple JSON documents",
+		},
+		{
+			name:    "trailing closing object rejected",
+			raw:     `{"a":1}}`,
+			wantErr: "invalid character",
+		},
+		{
+			name:    "trailing closing array rejected",
+			raw:     `{"a":1}]`,
+			wantErr: "invalid character",
 		},
 		{
 			name:    "invalid json rejected",
@@ -178,7 +187,7 @@ func TestHMACVerifierVerify(t *testing.T) {
 	}
 	signature := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 
-	err := HMACVerifier{Key: key}.Verify(context.Background(), Material{
+	err := HMACVerifier{Key: key}.Verify(t.Context(), Material{
 		Signature:     signature,
 		Timestamp:     ts,
 		CanonicalBody: body,
@@ -224,7 +233,7 @@ func TestHMACVerifierVerifyErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := tt.verifier.Verify(context.Background(), tt.material)
+			err := tt.verifier.Verify(t.Context(), tt.material)
 			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 				t.Fatalf("Verify() error = %v, want substring %q", err, tt.wantErr)
 			}
